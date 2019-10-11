@@ -15,13 +15,12 @@ from galaxy.api.errors import (
 from galaxy.http import HttpClient
 
 OAUTH_LOGIN_REDIRECT_URL = "https://my.playstation.com/auth/response.html"
+OAUTH_STORE_REDIRECT_URL = "https://store.playstation.com/html/webIframeRedirect.html"
 
 # TODO: we probably do not need all these scopes
-# TODO: generate random request ID
-OAUTH_URL_BASE = \
-    "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize" \
-    "?response_type=token" \
-    "&scope=capone:report_submission" \
+LOGIN_SCOPE = "capone:report_submission"
+
+NETWORK_SCOPE = "capone:report_submission" \
         ",kamaji:game_list" \
         ",kamaji:get_account_hash" \
         ",user:account.get" \
@@ -36,11 +35,30 @@ OAUTH_URL_BASE = \
         ",kamaji:activity_feed_internal_feed_submit_story" \
         ",kamaji:account_link_token_web" \
         ",kamaji:ugc:distributor_web" \
-        ",kamaji:url_preview" \
-    "&client_id=656ace0b-d627-47e6-915c-13b259cd06b2" \
-    "&redirect_uri=" + OAUTH_LOGIN_REDIRECT_URL
+    ",kamaji:url_preview"
 
-OAUTH_LOGIN_URL = OAUTH_URL_BASE + "?requestID=external_request_e0002664-7e12-474b-ba44-495683d32d3c" \
+STORE_SCOPE = "kamaji:get_vu_mylibrary" \
+    ",kamaji:get_recs" \
+    ",kamaji:get_internal_entitlements" \
+    ",genome:gene_get" \
+    ",wallets:instrument.get"
+
+CLIENT_ID = "656ace0b-d627-47e6-915c-13b259cd06b2"
+
+STORE_CLIENT_ID = "d932d31d-e8fc-4058-bd22-16d474938353"
+
+OAUTH_URL = "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize"
+
+# TODO: generate random request ID
+OAUTH_URL_BASE = \
+    "https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize" \
+    "?response_type=token" \
+    "&scope={scope}" \
+    "&client_id={client_id}" \
+    "&redirect_uri={redirect}"
+
+OAUTH_LOGIN_URL = OAUTH_URL_BASE.format(scope=LOGIN_SCOPE, redirect=OAUTH_LOGIN_REDIRECT_URL, client_id=CLIENT_ID) + \
+    "?requestID=external_request_e0002664-7e12-474b-ba44-495683d32d3c" \
     "&baseUrl=/" \
     "&returnRoute=/" \
     "&targetOrigin=https://my.playstation.com" \
@@ -49,11 +67,14 @@ OAUTH_LOGIN_URL = OAUTH_URL_BASE + "?requestID=external_request_e0002664-7e12-47
     "&tp_console=true" \
     "&ui=pr"
 
-OAUTH_TOKEN_URL = OAUTH_URL_BASE + "?requestID=iframe_request_c37ac45d-d6f2-4585-b93f-da014fe87579" \
+OAUTH_TOKEN_URL = OAUTH_URL_BASE.format(scope=NETWORK_SCOPE, redirect=OAUTH_LOGIN_REDIRECT_URL, client_id=CLIENT_ID) + \
+    "?requestID=iframe_request_c37ac45d-d6f2-4585-b93f-da014fe87579" \
     "&baseUrl=/" \
     "&targetOrigin=https://my.playstation.com" \
     "&prompt=none"
 
+OAUTH_STORE_TOKEN_URL = OAUTH_URL_BASE.format(scope=STORE_SCOPE, redirect=OAUTH_STORE_REDIRECT_URL, client_id=STORE_CLIENT_ID) + \
+    "?requestId=6dd8d96b-4a45-4f2a-8480-88434c56d57a"
 
 DEFAULT_TIMEOUT = 30
 CONNECTION_LIMIT = 20

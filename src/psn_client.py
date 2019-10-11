@@ -23,6 +23,11 @@ GAME_LIST_URL = "https://gamelist.api.playstation.com/v1/users/{user_id}/titles"
     "&ih=240"\
     "&fields=@default"
 
+INTERNAL_ENTITLEMENTS_URL = "https://commerce.api.np.km.playstation.net/commerce/api/v1/users/{user_id}/internal_entitlements" \
+    "?start=0" \
+    "&size=800" \
+    "&fields=drm_def"
+
 TROPHY_TITLES_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/trophyTitles" \
     "?fields=@default" \
     "&platform=PS4" \
@@ -39,6 +44,11 @@ USER_INFO_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/use
 
 FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
     "?fields=accountId,onlineId"
+
+ENTITLEMENT_DETAILS_URL = "https://store.playstation.com/valkyrie-api/en/US/19/resolve/{id}"
+
+PS3_PLATFORM_ID = 2147483648
+PS4_PLATFORM_ID = 2281701376
 
 DEFAULT_LIMIT = 100
 MAX_TITLE_IDS_PER_REQUEST = 5

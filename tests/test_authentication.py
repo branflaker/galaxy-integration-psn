@@ -7,6 +7,7 @@ from galaxy.api.types import Authentication, NextStep
 from http import HTTPStatus
 from plugin import AUTH_PARAMS
 from psn_client import USER_INFO_URL
+from unittest.mock import call
 from tests.async_mock import AsyncMock
 
 OWN_USER_INFO_URL = USER_INFO_URL.format(user_id="me")
@@ -55,7 +56,8 @@ async def test_no_stored_credentials(
         [{"name": "npsso", "value": npsso}]
     )
 
-    get_access_token.assert_called_once_with(npsso)
+    assert 2 == get_access_token.call_count
+    get_access_token.assert_has_calls([call(npsso), call(npsso)])
     http_get.assert_called_once_with(OWN_USER_INFO_URL)
     store_credentials.assert_called_once_with(stored_credentials)
 
@@ -76,7 +78,8 @@ async def test_stored_credentials(
 
     assert auth_info == await psn_plugin.authenticate(stored_credentials)
 
-    get_access_token.assert_called_once_with(npsso)
+    assert 2 == get_access_token.call_count
+    get_access_token.assert_has_calls([call(npsso), call(npsso)])
     http_get.assert_called_once_with(OWN_USER_INFO_URL)
 
 
@@ -90,7 +93,8 @@ async def test_failed_to_get_access_token_with_npsso(
     get_access_token.side_effect = UnknownBackendResponse
     with pytest.raises(UnknownBackendResponse):
         assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
+    assert 2 == get_access_token.call_count
+    get_access_token.assert_has_calls([call(npsso), call(npsso)])
 
 
 @pytest.mark.asyncio
@@ -106,7 +110,8 @@ async def test_failed_to_get_user_info_during_auth(
     http_get.side_effect = UnknownBackendResponse
     with pytest.raises(UnknownBackendResponse):
         assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
+    assert 2 == get_access_token.call_count
+    get_access_token.assert_has_calls([call(npsso), call(npsso)])
 
 
 @pytest.mark.asyncio
@@ -119,7 +124,8 @@ async def test_invalid_access_token(
     get_access_token.return_value = None
     with pytest.raises(UnknownBackendResponse):
         assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
+    assert 2 == get_access_token.call_count
+    get_access_token.assert_has_calls([call(npsso), call(npsso)])
 
 
 @pytest.mark.asyncio

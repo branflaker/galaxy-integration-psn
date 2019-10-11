@@ -2,6 +2,7 @@ from galaxy.api.consts import LicenseType
 from galaxy.api.types import Achievement, FriendInfo, Game, LicenseInfo
 
 COMMUNICATION_ID = "NPWR12784_00"
+GAME_INFO = { "classification": "GAME" }
 
 DEFAULT_LICENSE = LicenseInfo(LicenseType.SinglePurchase, None)
 
@@ -23,6 +24,24 @@ DLCS = [
 ]
 
 TITLES = GAMES + DLCS
+
+PS3_GAMES = [
+    Game("UP0101-NPUB31633_00-MGS4MAINGAME0000", "Metal Gear Solid 4: Guns of the Patriots", [], DEFAULT_LICENSE),
+    Game("UP4523-NPUB31625_00-INSPACEWEBRAWL01", "In Space We Brawl", [], DEFAULT_LICENSE),
+    Game("UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "Mighty No. 9", [], DEFAULT_LICENSE)
+]
+
+PS3_DLCS = [
+    Game("UP9000-CUSA00473_00-LBPDLCSONYCO0046", "LittleBigPlanet™ 3 Helghast Costume", [], DEFAULT_LICENSE)
+]
+
+PS3_DEMOS = [
+    Game("UP9000-NPUA70059_00-FATPRINCESSDEMO1", "Fat Princess Demo", [], DEFAULT_LICENSE)
+]
+
+PS3_TITLES = PS3_GAMES + PS3_DLCS + PS3_DEMOS
+
+ALL_GAMES = GAMES + PS3_GAMES
 
 BACKEND_GAME_TITLES_WITHOUT_DLC = {
     "start": 0,
@@ -73,6 +92,37 @@ TITLE_TO_COMMUNICATION_ID = {
     "CUSA07719_00": [],
     "CUSA07140_00": ["NPWR12456_00"],
     "CUSA08487_00": ["NPWR13354_00"]
+}
+
+BACKEND_ENTITLEMENTS_WITHOUT_DLC = {
+    "entitlements": [
+        {
+            "drm_def": {
+                "entitlementId": "UP0101-NPUB31633_00-MGS4MAINGAME0000",
+                "drmContents": [{ "titleName": "Metal Gear Solid 4: Guns of the Patriots", "platformIds": 2147483648 }]
+            }
+        },
+        {
+            "drm_def": {
+                "entitlementId": "UP4523-NPUB31625_00-INSPACEWEBRAWL01",
+                "drmContents": [{ "titleName": "In Space We Brawl", "platformIds": 2147483648 }]
+            }
+        },
+        {
+            "drm_def": {
+                "entitlementId": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE",
+                "drmContents": [{ "titleName": "Mighty No. 9", "platformIds": 2147483648 }]
+            }
+        }
+    ]
+}
+
+ENTITLEMENT_TO_GAME_INFO = {
+    "UP0101-NPUB31633_00-MGS4MAINGAME0000": { "classification": "GAME" },
+    "UP4523-NPUB31625_00-INSPACEWEBRAWL01": { "classification": "GAME" },
+    "UP2047-NPUB31733_00-MIGHTYNUMBERNINE": { "classification": "GAME" },
+    "UP9000-CUSA00473_00-LBPDLCSONYCO0046": { "classification": "ADD-ON" },
+    "UP9000-NPUA70059_00-FATPRINCESSDEMO1": {}
 }
 
 BACKEND_TROPHIES = {

@@ -21,20 +21,20 @@ OAUTH_STORE_REDIRECT_URL = "https://store.playstation.com/html/webIframeRedirect
 LOGIN_SCOPE = "capone:report_submission"
 
 NETWORK_SCOPE = "capone:report_submission" \
-        ",kamaji:game_list" \
-        ",kamaji:get_account_hash" \
-        ",user:account.get" \
-        ",user:account.profile.get" \
-        ",kamaji:social_get_graph" \
-        ",kamaji:ugc:distributor" \
-        ",user:account.identityMapper" \
-        ",kamaji:music_views" \
-        ",kamaji:activity_feed_get_feed_privacy" \
-        ",kamaji:activity_feed_get_news_feed" \
-        ",kamaji:activity_feed_submit_feed_story" \
-        ",kamaji:activity_feed_internal_feed_submit_story" \
-        ",kamaji:account_link_token_web" \
-        ",kamaji:ugc:distributor_web" \
+    ",kamaji:game_list" \
+    ",kamaji:get_account_hash" \
+    ",user:account.get" \
+    ",user:account.profile.get" \
+    ",kamaji:social_get_graph" \
+    ",kamaji:ugc:distributor" \
+    ",user:account.identityMapper" \
+    ",kamaji:music_views" \
+    ",kamaji:activity_feed_get_feed_privacy" \
+    ",kamaji:activity_feed_get_news_feed" \
+    ",kamaji:activity_feed_submit_feed_story" \
+    ",kamaji:activity_feed_internal_feed_submit_story" \
+    ",kamaji:account_link_token_web" \
+    ",kamaji:ugc:distributor_web" \
     ",kamaji:url_preview"
 
 STORE_SCOPE = "kamaji:get_vu_mylibrary" \
@@ -85,9 +85,10 @@ def paginate_url(url, limit, offset=0):
 
 
 class AuthenticatedHttpClient(HttpClient):
-    def __init__(self, auth_lost_callback):
+    def __init__(self, token_url, auth_lost_callback):
         self._access_token = None
         self._refresh_token = None
+        self._token_url = token_url
         self._auth_lost_callback = auth_lost_callback
         super().__init__(limit=CONNECTION_LIMIT, timeout=aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT))
 
@@ -106,7 +107,7 @@ class AuthenticatedHttpClient(HttpClient):
         try:
             response = await super().request(
                 "GET",
-                url=OAUTH_TOKEN_URL,
+                url=self._token_url,
                 cookies={"npsso": refresh_token},
                 allow_redirects=False
             )

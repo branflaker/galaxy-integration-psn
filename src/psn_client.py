@@ -55,6 +55,8 @@ MAX_TITLE_IDS_PER_REQUEST = 5
 
 CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
+GameInfo = NewType("GameInfo", dict)
+EntitlementId = NewType("EntitlementId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
 TrophyTitles = Dict[CommunicationId, UnixTimestamp]
 
@@ -65,8 +67,9 @@ def parse_timestamp(earned_date) -> UnixTimestamp:
 
 
 class PSNClient:
-    def __init__(self, http_client):
+    def __init__(self, http_client, store_http_client):
         self._http_client = http_client
+        self._store_http_client = store_http_client
 
     @staticmethod
     async def _async(method, *args, **kwargs):
@@ -104,6 +107,15 @@ class PSNClient:
 
     async def fetch_data(self, parser, *args, **kwargs):
         response = await self._http_client.get(*args, **kwargs)
+
+        try:
+            return parser(response)
+        except Exception:
+            logging.exception("Cannot parse data")
+            raise UnknownBackendResponse()
+
+    async def fetch_store_data(self, parser, *args, **kwargs):
+        response = await self._store_http_client.get(*args, **kwargs)
 
         try:
             return parser(response)
@@ -168,6 +180,46 @@ class PSNClient:
             game_id: mapping.get(game_id, [])
             for game_id in game_ids
         }
+
+    async def async_get_owned_ps3_games(self):
+        def ps3_entitlements(entitlement):
+            return "drm_def" in entitlement \
+                and entitlement["drm_def"]["drmContents"][0]["platformIds"] == PS3_PLATFORM_ID
+
+        def ps3_title_parser(title):
+            return Game(
+                game_id=title["drm_def"]["entitlementId"],
+                game_title=title["drm_def"]["drmContents"][0]["titleName"],
+                dlcs=[],
+                license_info=LicenseInfo(LicenseType.SinglePurchase, None)
+            )
+
+        def entitlements_parser(response):
+            return [
+                ps3_title_parser(title) for title in filter(ps3_entitlements, response["entitlements"])
+            ] if response and "entitlements" in response else []
+
+        return await self.fetch_store_data(
+            entitlements_parser,
+            INTERNAL_ENTITLEMENTS_URL.format(user_id="me")
+        )
+
+    async def async_get_game_info(self, game_id: EntitlementId) -> GameInfo:
+        def game_info_parser(response):
+            def get_game_info(attributes):
+                return {
+                    "classification": attributes["secondary-classification"]
+                }
+
+            try:
+                return get_game_info(response["included"][0]["attributes"]) if response else {}
+            except (KeyError, IndexError):
+                return {}
+
+        return await self.fetch_store_data(
+            game_info_parser,
+            ENTITLEMENT_DETAILS_URL.format(id=game_id)
+        )
 
     async def get_trophy_titles(self) -> TrophyTitles:
         def title_parser(title) -> Tuple[CommunicationId, UnixTimestamp]:

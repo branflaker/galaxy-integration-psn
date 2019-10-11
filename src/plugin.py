@@ -16,13 +16,13 @@ import serialization
 from cache import Cache
 from http_client import AuthenticatedHttpClient
 from psn_client import (
-    CommunicationId, TitleId, TrophyTitles, UnixTimestamp,
+    CommunicationId, TitleId, GameInfo, EntitlementId, TrophyTitles, UnixTimestamp,
     PSNClient, MAX_TITLE_IDS_PER_REQUEST
 )
 from typing import Dict, List, Set, Iterable, Tuple, Optional
 from version import __version__
 
-from http_client import OAUTH_LOGIN_URL, OAUTH_LOGIN_REDIRECT_URL
+from http_client import OAUTH_LOGIN_URL, OAUTH_LOGIN_REDIRECT_URL, OAUTH_TOKEN_URL, OAUTH_STORE_TOKEN_URL
 
 AUTH_PARAMS = {
     "window_title": "Login to My PlayStation\u2122",
@@ -38,12 +38,14 @@ _TID_TROPHIES_DICT = Dict[TitleId, List[Achievement]]
 
 TROPHIES_CACHE_KEY = "trophies"
 COMMUNICATION_IDS_CACHE_KEY = "communication_ids"
+GAME_INFO_CACHE_KEY = "game_info"
 
 class PSNPlugin(Plugin):
     def __init__(self, reader, writer, token):
         super().__init__(Platform.Psn, __version__, reader, writer, token)
-        self._http_client = AuthenticatedHttpClient(self.lost_authentication)
-        self._psn_client = PSNClient(self._http_client)
+        self._http_client = AuthenticatedHttpClient(OAUTH_TOKEN_URL, self.lost_authentication)
+        self._store_http_client = AuthenticatedHttpClient(OAUTH_STORE_TOKEN_URL, self.lost_authentication)
+        self._psn_client = PSNClient(self._http_client, self._store_http_client)
         self._trophies_cache = Cache()
         logging.getLogger("urllib3").setLevel(logging.FATAL)
 
@@ -51,11 +53,18 @@ class PSNPlugin(Plugin):
     def _comm_ids_cache(self):
         return self.persistent_cache.setdefault(COMMUNICATION_IDS_CACHE_KEY, {})
 
+    @property
+    def _ps3_game_info_cache(self):
+        return self.persistent_cache.setdefault(GAME_INFO_CACHE_KEY, {})
+
     async def _do_auth(self, npsso):
         if not npsso:
             raise InvalidCredentials()
 
-        await self._http_client.authenticate(npsso)
+        await asyncio.gather(
+            self._http_client.authenticate(npsso),
+            self._store_http_client.authenticate(npsso)
+        )
         user_id, user_name = await self._psn_client.async_get_own_user_info()
 
         return Authentication(user_id=user_id, user_name=user_name)
@@ -82,6 +91,11 @@ class PSNPlugin(Plugin):
     def _is_game(comm_id: List[CommunicationId]) -> bool:
         """Assumption: all games has communication id - otherwise it's DLC"""
         return comm_id != []
+
+    @staticmethod
+    def _is_ps3_game(game_info: GameInfo) -> bool:
+        """Most games have this info, but not all"""
+        return "classification" in game_info and game_info["classification"] == "GAME"
 
     async def update_communication_id_cache(self, title_ids: List[TitleId]) \
             -> Dict[TitleId, List[CommunicationId]]:
@@ -113,14 +127,59 @@ class PSNPlugin(Plugin):
 
         return result
 
+    async def update_ps3_game_info_cache(self, entitlement_ids: List[EntitlementId]) \
+            -> Dict[TitleId, GameInfo]:
+        async def updater(entitlement_id: EntitlementId):
+            try:
+                value = await self._psn_client.async_get_game_info(entitlement_id)
+            except:
+                value = {}
+            delta.update({entitlement_id: value})
+
+        delta: Dict[TitleId, GameInfo] = dict()
+        await asyncio.gather(*[
+            updater(entitlement_id) for entitlement_id in entitlement_ids
+        ])
+
+        self._ps3_game_info_cache.update(delta)
+        self.push_cache()
+        return delta
+
+    async def get_ps3_game_info(self, ps3_entitlement_ids: List[EntitlementId]) -> Dict[EntitlementId, GameInfo]:
+        result: Dict[EntitlementId, GameInfo] = dict()
+        misses: Set[EntitlementId] = set()
+        for ps3_entitlement_id in ps3_entitlement_ids:
+            ps3_game_info: Optional[GameInfo] = self._ps3_game_info_cache.get(ps3_entitlement_id)
+            if (ps3_game_info is not None):
+                result[ps3_entitlement_id] = ps3_game_info
+            else:
+                misses.add(ps3_entitlement_id)
+
+        if misses:
+            result.update(await self.update_ps3_game_info_cache(list(misses)))
+
+        return result
+
     async def get_owned_games(self):
         async def filter_games(titles):
             comm_id_map = await self.get_game_communication_ids([t.game_id for t in titles])
             return [title for title in titles if self._is_game(comm_id_map[title.game_id])]
 
-        return await filter_games(
-            await self._psn_client.async_get_owned_games()
+        async def filter_ps3_games(entitlements):
+            game_info = await self.get_ps3_game_info([e.game_id for e in entitlements])
+            return [entitlement for entitlement in entitlements if self._is_ps3_game(game_info[entitlement.game_id])]
+
+        result = await asyncio.gather(
+            self._psn_client.async_get_owned_games(),
+            self._psn_client.async_get_owned_ps3_games()
         )
+
+        filtered_result = await asyncio.gather(
+            filter_games(result[0]),
+            filter_ps3_games(result[1])
+        )
+
+        return filtered_result[0] + filtered_result[1]
 
     # TODO: backward compatibility. remove when GLX handles batch imports
     async def get_unlocked_achievements(self, game_id: TitleId):
@@ -251,6 +310,7 @@ class PSNPlugin(Plugin):
 
     def shutdown(self):
         asyncio.create_task(self._http_client.logout())
+        asyncio.create_task(self._store_http_client.logout())
 
     def handshake_complete(self):
         trophies_cache = self.persistent_cache.get(TROPHIES_CACHE_KEY)
@@ -266,6 +326,13 @@ class PSNPlugin(Plugin):
                 self.persistent_cache[COMMUNICATION_IDS_CACHE_KEY] = json.loads(comm_ids_cache)
             except json.JSONDecodeError:
                 logging.exception("Can not deserialize communication ids cache")
+
+        game_info_cache = self.persistent_cache.get(GAME_INFO_CACHE_KEY)
+        if (game_info_cache):
+            try:
+                self.persistent_cache[GAME_INFO_CACHE_KEY] = json.loads(game_info_cache)
+            except json.JSONDecodeError:
+                logging.exception("Can not deserialize game info cache")
 
 
 def main():

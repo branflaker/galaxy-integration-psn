@@ -4,10 +4,10 @@ import json
 import pytest
 from galaxy.api.jsonrpc import InvalidParams
 
-from plugin import COMMUNICATION_IDS_CACHE_KEY
+from plugin import COMMUNICATION_IDS_CACHE_KEY, GAME_INFO_CACHE_KEY
 from psn_client import GAME_DETAILS_URL
 from tests.async_mock import AsyncMock
-from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, TITLES, UNLOCKED_ACHIEVEMENTS
+from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, ENTITLEMENT_TO_GAME_INFO, TITLES, PS3_TITLES, ALL_GAMES, UNLOCKED_ACHIEVEMENTS
 
 GAME_ID = GAMES[0].game_id
 
@@ -22,11 +22,30 @@ def mock_client_get_owned_games(mocker):
     yield mocked
     mocked.assert_called_once_with()
 
+@pytest.fixture
+def mock_client_get_owned_ps3_games(mocker):
+    mocked = mocker.patch(
+        "plugin.PSNClient.async_get_owned_ps3_games",
+        new_callable=AsyncMock,
+        return_value=PS3_TITLES
+    )
+    yield mocked
+    mocked.assert_called_once_with()
+
 
 @pytest.fixture
 def mock_get_game_communication_id_map(mocker):
     mocked = mocker.patch(
         "plugin.PSNClient.async_get_game_communication_id_map",
+        new_callable=AsyncMock
+    )
+    yield mocked
+
+
+@pytest.fixture
+def mock_get_game_info(mocker):
+    mocked = mocker.patch(
+        "plugin.PSNClient.async_get_game_info",
         new_callable=AsyncMock
     )
     yield mocked
@@ -51,18 +70,25 @@ def comm_id_getter():
     ]:
         yield x
 
+def game_info_getter(id):
+    return ENTITLEMENT_TO_GAME_INFO[id]
+
 
 @pytest.mark.asyncio
 async def test_empty_cache_on_games_retrieval(
     authenticated_plugin,
     mock_client_get_owned_games,
-    mock_get_game_communication_id_map
+    mock_get_game_communication_id_map,
+    mock_client_get_owned_ps3_games,
+    mock_get_game_info
 ):
     mock_get_game_communication_id_map.side_effect = comm_id_getter()
+    mock_get_game_info.side_effect = game_info_getter
 
     assert COMMUNICATION_IDS_CACHE_KEY not in authenticated_plugin.persistent_cache
-    assert GAMES == await authenticated_plugin.get_owned_games()
+    assert ALL_GAMES == await authenticated_plugin.get_owned_games()
     assert TITLE_TO_COMMUNICATION_ID == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
+    assert ENTITLEMENT_TO_GAME_INFO == authenticated_plugin.persistent_cache[GAME_INFO_CACHE_KEY]
 
     mock_calls_args = []
     for mock_call in mock_get_game_communication_id_map.call_args_list:
@@ -72,18 +98,33 @@ async def test_empty_cache_on_games_retrieval(
 
     assert set(g.game_id for g in TITLES) == set(mock_calls_args)
 
+    mock_info_calls_args = []
+    for mock_call in mock_get_game_info.call_args_list:
+        args, kwargs = mock_call
+        for a in args:
+            mock_info_calls_args.append(a)
+
+    assert set(g.game_id for g in PS3_TITLES) == set(mock_info_calls_args)
+
 
 @pytest.mark.asyncio
 async def test_full_cache_on_games_retrieval(
     authenticated_plugin,
     mock_client_get_owned_games,
     mock_get_game_communication_id_map,
+    mock_client_get_owned_ps3_games,
+    mock_get_game_info,
     mock_persistent_cache
 ):
-    mock_persistent_cache.return_value = {COMMUNICATION_IDS_CACHE_KEY: TITLE_TO_COMMUNICATION_ID.copy()}
-    assert GAMES == await authenticated_plugin.get_owned_games()
+    mock_persistent_cache.return_value = {
+        COMMUNICATION_IDS_CACHE_KEY: TITLE_TO_COMMUNICATION_ID.copy(),
+        GAME_INFO_CACHE_KEY: ENTITLEMENT_TO_GAME_INFO.copy()
+    }
+    assert ALL_GAMES == await authenticated_plugin.get_owned_games()
     assert TITLE_TO_COMMUNICATION_ID == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
+    assert ENTITLEMENT_TO_GAME_INFO == authenticated_plugin.persistent_cache[GAME_INFO_CACHE_KEY]
     assert not mock_get_game_communication_id_map.called
+    assert not mock_get_game_info.called
 
 
 @pytest.mark.asyncio
@@ -91,20 +132,28 @@ async def test_cache_miss_on_games_retrieval(
     authenticated_plugin,
     mock_client_get_owned_games,
     mock_get_game_communication_id_map,
+    mock_client_get_owned_ps3_games,
+    mock_get_game_info,
     mock_persistent_cache
 ):
     border = int(len(TITLE_TO_COMMUNICATION_ID) / 2)
+    info_border = int(len(ENTITLEMENT_TO_GAME_INFO) / 2)
     mock_persistent_cache.return_value = {
-        COMMUNICATION_IDS_CACHE_KEY: dict(itertools.islice(TITLE_TO_COMMUNICATION_ID.items(), border))
+        COMMUNICATION_IDS_CACHE_KEY: dict(itertools.islice(TITLE_TO_COMMUNICATION_ID.items(), border)),
+        GAME_INFO_CACHE_KEY: dict(itertools.islice(ENTITLEMENT_TO_GAME_INFO.items(), info_border))
     }
     not_cached = dict(itertools.islice(TITLE_TO_COMMUNICATION_ID.items(), border, len(TITLE_TO_COMMUNICATION_ID)))
+    info_not_cached = dict(itertools.islice(ENTITLEMENT_TO_GAME_INFO.items(), info_border, len(ENTITLEMENT_TO_GAME_INFO)))
 
     mock_get_game_communication_id_map.return_value = {
         game_id: TITLE_TO_COMMUNICATION_ID[game_id] for game_id in not_cached
     }
 
-    assert GAMES == await authenticated_plugin.get_owned_games()
+    mock_get_game_info.side_effect = lambda game_id: info_not_cached[game_id]
+
+    assert ALL_GAMES == await authenticated_plugin.get_owned_games()
     assert TITLE_TO_COMMUNICATION_ID == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
+    assert ENTITLEMENT_TO_GAME_INFO == authenticated_plugin.persistent_cache[GAME_INFO_CACHE_KEY]
 
     mock_calls_args = []
     for mock_call in mock_get_game_communication_id_map.call_args_list:
@@ -113,6 +162,14 @@ async def test_cache_miss_on_games_retrieval(
             mock_calls_args += a
 
     assert set(not_cached) == set(mock_calls_args)
+
+    mock_info_calls_args = []
+    for mock_call in mock_get_game_info.call_args_list:
+        args, kwargs = mock_call
+        for a in args:
+            mock_info_calls_args.append(a)
+
+    assert set(info_not_cached) == set(mock_info_calls_args)
 
 
 @pytest.mark.asyncio

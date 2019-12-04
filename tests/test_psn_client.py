@@ -2,6 +2,7 @@ import math
 import pytest
 from galaxy.api.errors import TooManyRequests, UnknownBackendResponse
 from tests.async_mock import AsyncMock
+from tests.test_data import BACKEND_GAME_INFO
 
 TROPHIES = [
     {"id": "NPWR15900_00", "name": "Persona 5: Dancing in Starlight"},
@@ -231,3 +232,14 @@ async def test_request_limit(
         await authenticated_psn_client.get_trophy_titles()
 
     http_request.assert_called_once()
+
+@pytest.mark.asyncio
+async def test_game_info_regions(
+    http_get,
+    authenticated_psn_client
+):
+    http_get.side_effect = ["Not Found", "Not Found", "Not Found", BACKEND_GAME_INFO]
+
+    game_info = await authenticated_psn_client.async_get_game_info({"entitlement_id": "1", "product_id": "1"})
+    assert game_info["classification"] == "GAME"
+    assert game_info["title"] == "Test"

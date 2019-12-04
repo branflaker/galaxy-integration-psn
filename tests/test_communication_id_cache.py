@@ -7,7 +7,7 @@ from galaxy.api.jsonrpc import InvalidParams
 from plugin import COMMUNICATION_IDS_CACHE_KEY, GAME_INFO_CACHE_KEY
 from psn_client import GAME_DETAILS_URL
 from tests.async_mock import AsyncMock
-from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, ENTITLEMENT_TO_GAME_INFO, TITLES, PS3_TITLES, ALL_GAMES, UNLOCKED_ACHIEVEMENTS
+from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, ENTITLEMENT_TO_GAME_INFO, TITLES, PS3_ENTITLEMENTS, ALL_GAMES, UNLOCKED_ACHIEVEMENTS
 
 GAME_ID = GAMES[0].game_id
 
@@ -23,11 +23,11 @@ def mock_client_get_owned_games(mocker):
     mocked.assert_called_once_with()
 
 @pytest.fixture
-def mock_client_get_owned_ps3_games(mocker):
+def mock_client_get_owned_ps3_entitlements(mocker):
     mocked = mocker.patch(
-        "plugin.PSNClient.async_get_owned_ps3_games",
+        "plugin.PSNClient.async_get_owned_ps3_entitlements",
         new_callable=AsyncMock,
-        return_value=PS3_TITLES
+        return_value=PS3_ENTITLEMENTS
     )
     yield mocked
     mocked.assert_called_once_with()
@@ -70,8 +70,8 @@ def comm_id_getter():
     ]:
         yield x
 
-def game_info_getter(id):
-    return ENTITLEMENT_TO_GAME_INFO[id]
+def game_info_getter(entitlement):
+    return ENTITLEMENT_TO_GAME_INFO[entitlement["entitlement_id"]]
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_empty_cache_on_games_retrieval(
     authenticated_plugin,
     mock_client_get_owned_games,
     mock_get_game_communication_id_map,
-    mock_client_get_owned_ps3_games,
+    mock_client_get_owned_ps3_entitlements,
     mock_get_game_info
 ):
     mock_get_game_communication_id_map.side_effect = comm_id_getter()
@@ -104,7 +104,7 @@ async def test_empty_cache_on_games_retrieval(
         for a in args:
             mock_info_calls_args.append(a)
 
-    assert set(g.game_id for g in PS3_TITLES) == set(mock_info_calls_args)
+    assert PS3_ENTITLEMENTS == mock_info_calls_args
 
 
 @pytest.mark.asyncio
@@ -112,7 +112,7 @@ async def test_full_cache_on_games_retrieval(
     authenticated_plugin,
     mock_client_get_owned_games,
     mock_get_game_communication_id_map,
-    mock_client_get_owned_ps3_games,
+    mock_client_get_owned_ps3_entitlements,
     mock_get_game_info,
     mock_persistent_cache
 ):
@@ -132,7 +132,7 @@ async def test_cache_miss_on_games_retrieval(
     authenticated_plugin,
     mock_client_get_owned_games,
     mock_get_game_communication_id_map,
-    mock_client_get_owned_ps3_games,
+    mock_client_get_owned_ps3_entitlements,
     mock_get_game_info,
     mock_persistent_cache
 ):
@@ -149,7 +149,7 @@ async def test_cache_miss_on_games_retrieval(
         game_id: TITLE_TO_COMMUNICATION_ID[game_id] for game_id in not_cached
     }
 
-    mock_get_game_info.side_effect = lambda game_id: info_not_cached[game_id]
+    mock_get_game_info.side_effect = lambda entitlement: info_not_cached[entitlement["entitlement_id"]]
 
     assert ALL_GAMES == await authenticated_plugin.get_owned_games()
     assert TITLE_TO_COMMUNICATION_ID == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
@@ -169,7 +169,7 @@ async def test_cache_miss_on_games_retrieval(
         for a in args:
             mock_info_calls_args.append(a)
 
-    assert set(info_not_cached) == set(mock_info_calls_args)
+    assert set(info_not_cached) == set([e["entitlement_id"] for e in mock_info_calls_args])
 
 
 @pytest.mark.asyncio

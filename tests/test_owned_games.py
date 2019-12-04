@@ -37,7 +37,7 @@ async def test_get_owned_games(
     get_ps3_game_info = mocker.patch(
         "plugin.PSNPlugin.get_ps3_game_info",
         new_callable=AsyncMock,
-        return_value={game.game_id: GAME_INFO for game in PS3_GAMES }
+        return_value={game.game_id: {**GAME_INFO, "title": game.game_title} for game in PS3_GAMES }
     )
 
     assert (games + ps3_games) == await authenticated_plugin.get_owned_games()
@@ -46,7 +46,8 @@ async def test_get_owned_games(
     http_get.assert_any_call(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"))
     assert 2 == http_get.call_count
     get_game_communication_id.assert_called_once_with([game.game_id for game in games])
-    get_ps3_game_info.assert_called_once_with([game.game_id for game in ps3_games])
+    args = get_ps3_game_info.call_args
+    assert [game.game_id for game in ps3_games] == [e["entitlement_id"] for e in args[0][0]]
 
 
 @pytest.mark.asyncio

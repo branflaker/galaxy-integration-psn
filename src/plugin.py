@@ -7,8 +7,8 @@ import sys
 from collections import defaultdict
 
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Authentication, NextStep, Achievement
-from galaxy.api.consts import Platform
+from galaxy.api.types import Authentication, NextStep, Achievement, Game, LicenseInfo
+from galaxy.api.consts import Platform, LicenseType
 from galaxy.api.jsonrpc import InvalidParams
 from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError, AuthenticationRequired
 
@@ -16,8 +16,8 @@ import serialization
 from cache import Cache
 from http_client import AuthenticatedHttpClient
 from psn_client import (
-    CommunicationId, TitleId, GameInfo, EntitlementId, TrophyTitles, UnixTimestamp,
-    PSNClient, MAX_TITLE_IDS_PER_REQUEST
+    CommunicationId, TitleId, EntitlementId, GameInfo, Entitlement, TrophyTitles, UnixTimestamp,
+    PSNClient, MAX_TITLE_IDS_PER_REQUEST, VALID_CLASSIFICATIONS
 )
 from typing import Dict, List, Set, Iterable, Tuple, Optional
 from version import __version__
@@ -93,9 +93,13 @@ class PSNPlugin(Plugin):
         return comm_id != []
 
     @staticmethod
-    def _is_ps3_game(game_info: GameInfo) -> bool:
-        """Most games have this info, but not all"""
-        return "classification" in game_info and game_info["classification"] == "GAME"
+    def _create_ps3_game(entitlement, game_info):
+        return Game(
+            game_id=entitlement["entitlement_id"],
+            game_title=game_info["title"],
+            dlcs=[],
+            license_info=LicenseInfo(LicenseType.SinglePurchase, None)
+        )
 
     async def update_communication_id_cache(self, title_ids: List[TitleId]) \
             -> Dict[TitleId, List[CommunicationId]]:
@@ -127,36 +131,36 @@ class PSNPlugin(Plugin):
 
         return result
 
-    async def update_ps3_game_info_cache(self, entitlement_ids: List[EntitlementId]) \
-            -> Dict[TitleId, GameInfo]:
-        async def updater(entitlement_id: EntitlementId):
+    async def update_ps3_game_info_cache(self, entitlements: List[Entitlement]) \
+            -> Dict[EntitlementId, GameInfo]:
+        async def updater(entitlement: Entitlement):
             try:
-                value = await self._psn_client.async_get_game_info(entitlement_id)
+                value = await self._psn_client.async_get_game_info(entitlement)
             except:
-                value = {}
-            delta.update({entitlement_id: value})
+                value = None
+            delta.update({entitlement["entitlement_id"]: value})
 
-        delta: Dict[TitleId, GameInfo] = dict()
+        delta: Dict[EntitlementId, GameInfo] = dict()
         await asyncio.gather(*[
-            updater(entitlement_id) for entitlement_id in entitlement_ids
+            updater(entitlement) for entitlement in entitlements
         ])
 
         self._ps3_game_info_cache.update(delta)
         self.push_cache()
         return delta
 
-    async def get_ps3_game_info(self, ps3_entitlement_ids: List[EntitlementId]) -> Dict[EntitlementId, GameInfo]:
+    async def get_ps3_game_info(self, ps3_entitlements: List[Entitlement]) -> Dict[EntitlementId, GameInfo]:
         result: Dict[EntitlementId, GameInfo] = dict()
-        misses: Set[EntitlementId] = set()
-        for ps3_entitlement_id in ps3_entitlement_ids:
-            ps3_game_info: Optional[GameInfo] = self._ps3_game_info_cache.get(ps3_entitlement_id)
+        misses: List[Entitlement] = list()
+        for ps3_entitlement in ps3_entitlements:
+            ps3_game_info: Optional[GameInfo] = self._ps3_game_info_cache.get(ps3_entitlement["entitlement_id"])
             if (ps3_game_info is not None):
-                result[ps3_entitlement_id] = ps3_game_info
+                result[ps3_entitlement["entitlement_id"]] = ps3_game_info
             else:
-                misses.add(ps3_entitlement_id)
+                misses.append(ps3_entitlement)
 
         if misses:
-            result.update(await self.update_ps3_game_info_cache(list(misses)))
+            result.update(await self.update_ps3_game_info_cache(misses))
 
         return result
 
@@ -165,18 +169,23 @@ class PSNPlugin(Plugin):
             comm_id_map = await self.get_game_communication_ids([t.game_id for t in titles])
             return [title for title in titles if self._is_game(comm_id_map[title.game_id])]
 
-        async def filter_ps3_games(entitlements):
-            game_info = await self.get_ps3_game_info([e.game_id for e in entitlements])
-            return [entitlement for entitlement in entitlements if self._is_ps3_game(game_info[entitlement.game_id])]
+        async def map_entitlements_to_ps3_games(entitlements):
+            game_info_map = await self.get_ps3_game_info(entitlements)
+            return [
+                self._create_ps3_game(entitlement, game_info_map[entitlement["entitlement_id"]])
+                    for entitlement in entitlements
+                    if game_info_map[entitlement["entitlement_id"]] and \
+                        game_info_map[entitlement["entitlement_id"]]["classification"] in VALID_CLASSIFICATIONS
+            ]
 
         result = await asyncio.gather(
             self._psn_client.async_get_owned_games(),
-            self._psn_client.async_get_owned_ps3_games()
+            self._psn_client.async_get_owned_ps3_entitlements()
         )
 
         filtered_result = await asyncio.gather(
             filter_games(result[0]),
-            filter_ps3_games(result[1])
+            map_entitlements_to_ps3_games(result[1])
         )
 
         return filtered_result[0] + filtered_result[1]

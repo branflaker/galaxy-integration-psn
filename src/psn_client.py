@@ -45,17 +45,34 @@ USER_INFO_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/use
 FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
     "?fields=accountId,onlineId"
 
-ENTITLEMENT_DETAILS_URL = "https://store.playstation.com/valkyrie-api/en/US/19/resolve/{id}"
+ENTITLEMENT_DETAILS_URL = "https://store.playstation.com/valkyrie-api/en/{country}/19/resolve/{id}"
 
-PS3_PLATFORM_ID = 2147483648
-PS4_PLATFORM_ID = 2281701376
+COUNTRIES = [
+    # NA region country
+    "US",
+    # EU region country, a nod to daslight on Discord who helped test
+    "RO"
+]
+
+VALID_CLASSIFICATIONS = [
+    "GAME",
+    "PS1_CLASSIC"
+]
+
+ENTITLEMENT_PLATFORM_IDS = [
+    # PS3
+    2147483648,
+    # Vita
+    134217728,
+    # ???
+    4161798144
+]
 
 DEFAULT_LIMIT = 100
 MAX_TITLE_IDS_PER_REQUEST = 5
 
 CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
-GameInfo = NewType("GameInfo", dict)
 EntitlementId = NewType("EntitlementId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
 TrophyTitles = Dict[CommunicationId, UnixTimestamp]
@@ -181,17 +198,16 @@ class PSNClient:
             for game_id in game_ids
         }
 
-    async def async_get_owned_ps3_games(self):
+    async def async_get_owned_ps3_entitlements(self):
         def ps3_entitlements(entitlement):
             return "drm_def" in entitlement \
-                and entitlement["drm_def"]["drmContents"][0]["platformIds"] == PS3_PLATFORM_ID
+                and entitlement["drm_def"]["drmContents"][0]["platformIds"] in ENTITLEMENT_PLATFORM_IDS \
+                and entitlement["drm_def"]["drmContents"][0]["drmType"] != 3
 
         def ps3_title_parser(title):
-            return Game(
-                game_id=title["drm_def"]["entitlementId"],
-                game_title=title["drm_def"]["drmContents"][0]["titleName"],
-                dlcs=[],
-                license_info=LicenseInfo(LicenseType.SinglePurchase, None)
+            return dict(
+                product_id=title["drm_def"]["productId"],
+                entitlement_id=title["drm_def"]["entitlementId"]
             )
 
         def entitlements_parser(response):
@@ -204,22 +220,41 @@ class PSNClient:
             INTERNAL_ENTITLEMENTS_URL.format(user_id="me")
         )
 
-    async def async_get_game_info(self, game_id: EntitlementId) -> GameInfo:
+    async def async_get_game_info(self, entitlement: dict) -> dict:
         def game_info_parser(response):
-            def get_game_info(attributes):
-                return {
-                    "classification": attributes["secondary-classification"]
-                }
-
             try:
-                return get_game_info(response["included"][0]["attributes"]) if response else {}
+                logging.debug("[PSN] details: " + json.dumps(response))
+                if response:
+                    for i in response["included"]:
+                        if "entitlements" in i["attributes"]:
+                            logging.debug("[PSN] found entitlement:" + json.dumps(i["attributes"]["entitlements"]))
+                            for e in i["attributes"]["entitlements"]:
+                                if e["id"] == entitlement["entitlement_id"]:
+                                    return dict(
+                                        classification=response["included"][0]["attributes"]["secondary-classification"],
+                                        title=e["name"]
+                                    )
+                    return {}
+                else:
+                    return {}
             except (KeyError, IndexError):
                 return {}
 
-        return await self.fetch_store_data(
-            game_info_parser,
-            ENTITLEMENT_DETAILS_URL.format(id=game_id)
-        )
+        result = None
+        for country in COUNTRIES:
+            for id_field in ["entitlement_id", "product_id"]:
+                try:
+                    result = await self.fetch_store_data(
+                        game_info_parser,
+                        ENTITLEMENT_DETAILS_URL.format(id=entitlement[id_field],country=country)
+                    )
+                except:
+                    continue
+                break
+            if result:
+                break
+
+        return result
 
     async def get_trophy_titles(self) -> TrophyTitles:
         def title_parser(title) -> Tuple[CommunicationId, UnixTimestamp]:

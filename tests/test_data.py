@@ -28,7 +28,8 @@ TITLES = GAMES + DLCS
 PS3_GAMES = [
     Game("UP0101-NPUB31633_00-MGS4MAINGAME0000", "Metal Gear Solid 4: Guns of the Patriots", [], DEFAULT_LICENSE),
     Game("UP4523-NPUB31625_00-INSPACEWEBRAWL01", "In Space We Brawl", [], DEFAULT_LICENSE),
-    Game("UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "Mighty No. 9", [], DEFAULT_LICENSE)
+    Game("UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "Mighty No. 9", [], DEFAULT_LICENSE),
+    Game("EP9000-NPEE00026_00-GCRASHTEAE000001", "CTR™: Crash Team Racing", [], DEFAULT_LICENSE)
 ]
 
 PS3_DLCS = [
@@ -36,12 +37,20 @@ PS3_DLCS = [
 ]
 
 PS3_DEMOS = [
-    Game("UP9000-NPUA70059_00-FATPRINCESSDEMO1", "Fat Princess Demo", [], DEFAULT_LICENSE)
+    Game("UP0700-NPUB90277_00-KATAMARI4EVRDEMO", "Katamari Forever™ Demo", [], DEFAULT_LICENSE)
 ]
 
 PS3_TITLES = PS3_GAMES + PS3_DLCS + PS3_DEMOS
 
 ALL_GAMES = GAMES + PS3_GAMES
+
+PS3_ENTITLEMENTS = [
+    {"entitlement_id": "UP0101-NPUB31633_00-MGS4MAINGAME0000", "product_id": "UP0101-NPUB31633_00-MGS4MAINGAME0000"},
+    {"entitlement_id": "UP4523-NPUB31625_00-INSPACEWEBRAWL01", "product_id": "UP4523-CUSA01386_00-INSPACEWEBRAWL01"},
+    {"entitlement_id": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "product_id": "UP2047-CUSA02495_00-MIGHTYNUMBERNINE"},
+    {"entitlement_id": "UP9000-CUSA00473_00-LBPDLCSONYCO0046", "product_id": "UP9000-CUSA00473_00-LBPDLCSONYCO0046"},
+    {"entitlement_id": "EP9000-NPEE00026_00-GCRASHTEAE000001", "product_id": "EP9000-NPEE00026_00-GCRASHTEAM000001"}
+]
 
 BACKEND_GAME_TITLES_WITHOUT_DLC = {
     "start": 0,
@@ -98,31 +107,62 @@ BACKEND_ENTITLEMENTS_WITHOUT_DLC = {
     "entitlements": [
         {
             "drm_def": {
+                "productId": "UP0101-NPUB31633_00-MGS4MAINGAME0000",
                 "entitlementId": "UP0101-NPUB31633_00-MGS4MAINGAME0000",
-                "drmContents": [{ "titleName": "Metal Gear Solid 4: Guns of the Patriots", "platformIds": 2147483648 }]
+                "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
             }
         },
         {
             "drm_def": {
+                "productId": "UP4523-NPUB31625_00-INSPACEWEBRAWL01",
                 "entitlementId": "UP4523-NPUB31625_00-INSPACEWEBRAWL01",
-                "drmContents": [{ "titleName": "In Space We Brawl", "platformIds": 2147483648 }]
+                "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
             }
         },
         {
             "drm_def": {
+                "productId": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE",
                 "entitlementId": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE",
-                "drmContents": [{ "titleName": "Mighty No. 9", "platformIds": 2147483648 }]
+                "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "entitlementId": "EP9000-NPEE00026_00-GCRASHTEAE000001",
+                "productId": "EP9000-NPEE00026_00-GCRASHTEAM000001",
+                "drmContents": [{ "platformIds": 4161798144, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "productId": "UP0700-NPUB90277_00-KATAMARI4EVRDEMO",
+                "entitlementId": "UP0700-NPUB90277_00-KATAMARI4EVRDEMO",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 3 }]
             }
         }
     ]
 }
 
 ENTITLEMENT_TO_GAME_INFO = {
-    "UP0101-NPUB31633_00-MGS4MAINGAME0000": { "classification": "GAME" },
-    "UP4523-NPUB31625_00-INSPACEWEBRAWL01": { "classification": "GAME" },
-    "UP2047-NPUB31733_00-MIGHTYNUMBERNINE": { "classification": "GAME" },
-    "UP9000-CUSA00473_00-LBPDLCSONYCO0046": { "classification": "ADD-ON" },
-    "UP9000-NPUA70059_00-FATPRINCESSDEMO1": {}
+    "UP0101-NPUB31633_00-MGS4MAINGAME0000": { "title": "Metal Gear Solid 4: Guns of the Patriots", "classification": "GAME" },
+    "UP4523-NPUB31625_00-INSPACEWEBRAWL01": { "title": "In Space We Brawl", "classification": "GAME" },
+    "UP2047-NPUB31733_00-MIGHTYNUMBERNINE": { "title": "Mighty No. 9", "classification": "GAME" },
+    "EP9000-NPEE00026_00-GCRASHTEAE000001": { "title": "CTR™: Crash Team Racing", "classification": "PS1_CLASSIC" },
+    "UP9000-CUSA00473_00-LBPDLCSONYCO0046": { "title": "LittleBigPlanet™ 3 Helghast Costume", "classification": "ADD-ON" }
+}
+
+BACKEND_GAME_INFO = {
+    "included": [
+        {
+            "attributes": {
+                "secondary-classification": "GAME",
+                "entitlements": [{
+                    "name": "Test",
+                    "id": "1"
+                }]
+            }
+        }
+    ]
 }
 
 BACKEND_TROPHIES = {

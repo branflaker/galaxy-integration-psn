@@ -5,7 +5,7 @@ from functools import partial
 from typing import Dict, List, NewType, Tuple
 
 from galaxy.api.errors import UnknownBackendResponse
-from galaxy.api.types import Achievement, Game, LicenseInfo, FriendInfo
+from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState
 from galaxy.api.consts import LicenseType
 from http_client import paginate_url
 
@@ -42,8 +42,13 @@ EARNED_TROPHIES_PAGE = "https://pl-tpy.np.community.playstation.net/trophy/v1/" 
 USER_INFO_URL = "https://pl-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/profile2" \
     "?fields=accountId,onlineId"
 
+DEFAULT_AVATAR_SIZE = "l"
 FRIENDS_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
-    "?fields=accountId,onlineId"
+    "?fields=accountId,onlineId,avatarUrls&avatarSizes={avatar_size_list}"
+
+FRIENDS_WITH_PRESENCE_URL = "https://us-prof.np.community.playstation.net/userProfile/v1/users/{user_id}/friends/profiles2" \
+    "?fields=accountId,onlineId,primaryOnlineStatus,presences(@titleInfo,lastOnlineDate)"
+
 
 ENTITLEMENT_DETAILS_URL = "https://store.playstation.com/valkyrie-api/en/{country}/19/resolve/{id}"
 
@@ -292,18 +297,58 @@ class PSNClient:
 
     async def async_get_friends(self):
         def friend_info_parser(profile):
-            return FriendInfo(
+
+            avatar_url = None
+            for avatar in profile["avatarUrls"]:
+                avatar_url = avatar["avatarUrl"]
+
+            return UserInfo(
                 user_id=str(profile["accountId"]),
-                user_name=str(profile["onlineId"])
+                user_name=str(profile["onlineId"]),
+                avatar_url=avatar_url,
+                profile_url=f"https://my.playstation.com/profile/{str(profile['onlineId'])}"
             )
 
         def friend_list_parser(response):
+            logging.info(response)
             return [
                 friend_info_parser(profile) for profile in response.get("profiles", [])
             ] if response else []
 
         return await self.fetch_paginated_data(
             friend_list_parser,
-            FRIENDS_URL.format(user_id="me"),
+            FRIENDS_URL.format(user_id="me", avatar_size_list=DEFAULT_AVATAR_SIZE),
+            "totalResults"
+        )
+
+    async def async_get_friends_presences(self):
+        def friend_info_parser(profile):
+
+            if profile["primaryOnlineStatus"] == "online":
+                presence_state = PresenceState.Online
+            else:
+                presence_state = PresenceState.Offline
+
+            game_title = game_id = None
+
+            if "presences" in profile:
+                for presence in profile["presences"]:
+                    try:
+                        if presence["onlineStatus"] == "online" and presence["platform"] == "PS4":
+                            game_title = presence["titleName"]
+                            game_id = presence["npTitleId"]
+                    except:
+                        continue
+
+            return {profile['accountId']: UserPresence(presence_state, game_id, game_title)}
+
+        def friends_with_presence_parser(response):
+            return [
+                friend_info_parser(profile) for profile in response.get("profiles", [])
+            ] if response else []
+
+        return await self.fetch_paginated_data(
+            friends_with_presence_parser,
+            FRIENDS_WITH_PRESENCE_URL.format(user_id="me"),
             "totalResults"
         )

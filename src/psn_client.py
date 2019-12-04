@@ -73,6 +73,8 @@ MAX_TITLE_IDS_PER_REQUEST = 5
 
 CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
+Entitlement = NewType("Entitlement", dict)
+GameInfo = NewType("GameInfo", dict)
 EntitlementId = NewType("EntitlementId", str)
 UnixTimestamp = NewType("UnixTimestamp", int)
 TrophyTitles = Dict[CommunicationId, UnixTimestamp]
@@ -220,7 +222,7 @@ class PSNClient:
             INTERNAL_ENTITLEMENTS_URL.format(user_id="me")
         )
 
-    async def async_get_game_info(self, entitlement: dict) -> dict:
+    async def async_get_game_info(self, entitlement: Entitlement) -> GameInfo:
         def game_info_parser(response):
             try:
                 if response:

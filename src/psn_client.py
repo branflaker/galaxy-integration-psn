@@ -223,11 +223,9 @@ class PSNClient:
     async def async_get_game_info(self, entitlement: dict) -> dict:
         def game_info_parser(response):
             try:
-                logging.debug("[PSN] details: " + json.dumps(response))
                 if response:
                     for i in response["included"]:
                         if "entitlements" in i["attributes"]:
-                            logging.debug("[PSN] found entitlement:" + json.dumps(i["attributes"]["entitlements"]))
                             for e in i["attributes"]["entitlements"]:
                                 if e["id"] == entitlement["entitlement_id"]:
                                     return dict(

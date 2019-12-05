@@ -123,7 +123,7 @@ class PSNPlugin(Plugin):
             comm_ids: Optional[List[CommunicationId]] = self._comm_ids_cache.get(title_id)
             if comm_ids is not None:
                 result[title_id] = comm_ids
-            else:
+            elif self._ps3_game_info_cache.get(title_id) is None:
                 misses.add(title_id)
 
         if misses:
@@ -193,8 +193,18 @@ class PSNPlugin(Plugin):
     async def get_unlocked_achievements(self, game_id: str, context: Any) -> List[Achievement]:
         if not context:
             return []
-        comm_ids: List[CommunicationId] = (await self.get_game_communication_ids([game_id]))[game_id]
-        if not self._is_game(comm_ids):
+        mock_entitlement = { "entitlement_id": game_id }
+        comm_id_map = await self.get_game_communication_ids([game_id])
+        game_info_map = await self.get_ps3_game_info([mock_entitlement])
+
+        if not comm_id_map:
+            if game_info_map:
+                return []
+            else:
+                raise InvalidParams()
+
+        comm_ids: List[CommunicationId] = comm_id_map[game_id]
+        if not (self._is_game(comm_ids)):
             raise InvalidParams()
         return self._get_game_trophies_from_cache(comm_ids, context)[0]
 

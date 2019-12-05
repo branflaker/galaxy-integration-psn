@@ -212,6 +212,21 @@ async def test_cache_miss_on_game_achievements_retrieval(
     mock_get_game_communication_id_map.assert_called_once_with([GAME_ID])
 
 @pytest.mark.asyncio
+async def test_game_info_cache_on_game_achievements_retrieval(
+    authenticated_plugin,
+    mock_get_game_communication_id_map,
+    mock_get_game_info,
+    mock_persistent_cache
+):
+    mapping = {GAME_ID: { "classification": "GAME" }}
+    mock_persistent_cache.return_value = {COMMUNICATION_IDS_CACHE_KEY: {}, GAME_INFO_CACHE_KEY: mapping}
+
+    assert [] == await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
+
+    assert not mock_get_game_communication_id_map.called
+    assert not mock_get_game_info.called
+
+@pytest.mark.asyncio
 async def test_cached_on_dlc_achievements_retrieval(
     authenticated_plugin,
     mock_client_get_earned_trophies,

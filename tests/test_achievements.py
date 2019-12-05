@@ -4,12 +4,13 @@ from galaxy.api.errors import AuthenticationRequired, UnknownBackendResponse
 from psn_client import EARNED_TROPHIES_PAGE
 from tests.async_mock import AsyncMock
 from unittest.mock import MagicMock
-from tests.test_data import COMMUNICATION_ID, GAMES, TITLE_TO_COMMUNICATION_ID, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE, BACKEND_TROPHIES
+from tests.test_data import COMMUNICATION_ID, ALL_GAMES, TITLE_TO_COMMUNICATION_ID, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE, BACKEND_TROPHIES
 
 GET_ALL_TROPHIES_URL = EARNED_TROPHIES_PAGE.format(communication_id=COMMUNICATION_ID, trophy_group_id="all")
 
 GAME_ID = "CUSA07320_00"
-GAME_IDS = [game.game_id for game in GAMES]
+ENTITLEMENT_ID = "UP0101-NPUB31633_00-MGS4MAINGAME0000"
+GAME_IDS = [game.game_id for game in ALL_GAMES]
 
 async def _wait_for_comm_ids_and_import_start():
     for i in range(7):
@@ -73,6 +74,15 @@ async def test_get_unlocked_achievements(
     mock_get_game_communication_ids.return_value = TITLE_TO_COMMUNICATION_ID
     authenticated_plugin._trophies_cache = TROPHIES_CACHE
     assert UNLOCKED_ACHIEVEMENTS == await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
+
+@pytest.mark.asyncio
+async def test_get_unlocked_achievements_ps3(
+    authenticated_plugin,
+    mock_get_game_communication_ids,
+):
+    mock_get_game_communication_ids.return_value = {}
+    authenticated_plugin._trophies_cache = TROPHIES_CACHE
+    assert [] == await authenticated_plugin.get_unlocked_achievements(ENTITLEMENT_ID, CONTEXT)
 
 @pytest.mark.asyncio
 async def test_get_unlocked_achievements_trophies_cache_called(

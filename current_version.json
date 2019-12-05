@@ -1,8 +1,8 @@
 {
-    "tag_name": "v0.25.2",
+    "tag_name": "v0.26-ps3.2",
     "assets": [
         {
-            "browser_download_url": "https://github.com/branflaker/galaxy-integration-psn/releases/download/ps3-v0.25.2/windows.zip",
+            "browser_download_url": "https://github.com/branflaker/galaxy-integration-psn/releases/download/v0.26-ps3.2/psn_v0.26-ps3.2.zip",
             "name": "windows.zip"
         }
     ]

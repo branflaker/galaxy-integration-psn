@@ -38,6 +38,7 @@ _TID_TROPHIES_DICT = Dict[TitleId, List[Achievement]]
 
 TROPHIES_CACHE_KEY = "trophies"
 COMMUNICATION_IDS_CACHE_KEY = "communication_ids"
+ENTITLEMENTS_CACHE_KEY = "entitlements"
 GAME_INFO_CACHE_KEY = "game_info"
 
 class PSNPlugin(Plugin):
@@ -52,6 +53,10 @@ class PSNPlugin(Plugin):
     @property
     def _comm_ids_cache(self):
         return self.persistent_cache.setdefault(COMMUNICATION_IDS_CACHE_KEY, {})
+
+    @property
+    def _entitlements_cache(self):
+        return self.persistent_cache.setdefault(ENTITLEMENTS_CACHE_KEY, {})
 
     @property
     def _ps3_game_info_cache(self):
@@ -95,7 +100,7 @@ class PSNPlugin(Plugin):
     @staticmethod
     def _create_ps3_game(entitlement, game_info):
         return Game(
-            game_id=entitlement["entitlement_id"],
+            game_id=entitlement["id"],
             game_title=game_info["title"],
             dlcs=[],
             license_info=LicenseInfo(LicenseType.SinglePurchase, None)
@@ -131,6 +136,14 @@ class PSNPlugin(Plugin):
 
         return result
 
+    def update_entitlements_cache(self, entitlements: List[Entitlement]) \
+        -> Dict[EntitlementId, Entitlement]:
+        self._entitlements_cache.update({e["id"]: e for e in entitlements})
+        self.push_cache()
+
+    def get_entitlement_from_cache(self, id: EntitlementId) -> Entitlement:
+        return self._entitlements_cache.get(id)
+
     async def update_ps3_game_info_cache(self, entitlements: List[Entitlement]) \
             -> Dict[EntitlementId, GameInfo]:
         async def updater(entitlement: Entitlement):
@@ -138,7 +151,7 @@ class PSNPlugin(Plugin):
                 value = await self._psn_client.async_get_game_info(entitlement)
             except:
                 value = None
-            delta.update({entitlement["entitlement_id"]: value})
+            delta.update({entitlement["id"]: value})
 
         delta: Dict[EntitlementId, GameInfo] = dict()
         await asyncio.gather(*[
@@ -153,11 +166,12 @@ class PSNPlugin(Plugin):
         result: Dict[EntitlementId, GameInfo] = dict()
         misses: List[Entitlement] = list()
         for ps3_entitlement in ps3_entitlements:
-            ps3_game_info: Optional[GameInfo] = self._ps3_game_info_cache.get(ps3_entitlement["entitlement_id"])
-            if (ps3_game_info is not None):
-                result[ps3_entitlement["entitlement_id"]] = ps3_game_info
-            else:
-                misses.append(ps3_entitlement)
+            if ps3_entitlement:
+                ps3_game_info: Optional[GameInfo] = self._ps3_game_info_cache.get(ps3_entitlement["id"])
+                if (ps3_game_info is not None):
+                    result[ps3_entitlement["id"]] = ps3_game_info
+                else:
+                    misses.append(ps3_entitlement)
 
         if misses:
             result.update(await self.update_ps3_game_info_cache(misses))
@@ -172,16 +186,18 @@ class PSNPlugin(Plugin):
         async def map_entitlements_to_ps3_games(entitlements):
             game_info_map = await self.get_ps3_game_info(entitlements)
             return [
-                self._create_ps3_game(entitlement, game_info_map[entitlement["entitlement_id"]])
+                self._create_ps3_game(entitlement, game_info_map[entitlement["id"]])
                     for entitlement in entitlements
-                    if game_info_map[entitlement["entitlement_id"]] and \
-                        game_info_map[entitlement["entitlement_id"]]["classification"] in VALID_CLASSIFICATIONS
+                    if game_info_map[entitlement["id"]] and \
+                        game_info_map[entitlement["id"]]["classification"] in VALID_CLASSIFICATIONS
             ]
 
         result = await asyncio.gather(
             self._psn_client.async_get_owned_games(),
             self._psn_client.async_get_owned_ps3_entitlements()
         )
+
+        self.update_entitlements_cache(result[1])
 
         filtered_result = await asyncio.gather(
             filter_games(result[0]),
@@ -193,9 +209,9 @@ class PSNPlugin(Plugin):
     async def get_unlocked_achievements(self, game_id: str, context: Any) -> List[Achievement]:
         if not context:
             return []
-        mock_entitlement = { "entitlement_id": game_id }
         comm_id_map = await self.get_game_communication_ids([game_id])
-        game_info_map = await self.get_ps3_game_info([mock_entitlement])
+        entitlement = self.get_entitlement_from_cache(game_id)
+        game_info_map = await self.get_ps3_game_info([entitlement])
 
         if not comm_id_map:
             if game_info_map:
@@ -329,6 +345,13 @@ class PSNPlugin(Plugin):
                 self.persistent_cache[COMMUNICATION_IDS_CACHE_KEY] = json.loads(comm_ids_cache)
             except json.JSONDecodeError:
                 logging.exception("Can not deserialize communication ids cache")
+
+        entitlements_cache = self.persistent_cache.get(ENTITLEMENTS_CACHE_KEY)
+        if entitlements_cache:
+            try:
+                self.persistent_cache[ENTITLEMENTS_CACHE_KEY] = json.loads(entitlements_cache)
+            except json.JSONDecodeError:
+                logging.exception("Can not deserialize entitlements cache")
 
         game_info_cache = self.persistent_cache.get(GAME_INFO_CACHE_KEY)
         if (game_info_cache):

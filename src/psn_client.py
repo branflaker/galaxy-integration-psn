@@ -52,6 +52,9 @@ FRIENDS_WITH_PRESENCE_URL = "https://us-prof.np.community.playstation.net/userPr
 
 ENTITLEMENT_DETAILS_URL = "https://store.playstation.com/valkyrie-api/en/{country}/19/resolve/{id}"
 
+PS3_SEARCH_URL = "https://store.playstation.com/valkyrie-api/en/{country}/19/faceted-search/{query}" \
+    "?query=&platform=ps3&game_content_type=games&size=30&bucket=games&start=0"
+
 COUNTRIES = [
     # NA region country
     "US",
@@ -61,15 +64,22 @@ COUNTRIES = [
 
 VALID_CLASSIFICATIONS = [
     "GAME",
-    "PS1_CLASSIC"
+    "PS1_CLASSIC",
+    "PS2_CLASSIC"
 ]
 
 ENTITLEMENT_PLATFORM_IDS = [
     # PS3
+    # 10000000000000000000000000000000
     2147483648,
+    # Vita, downloadable to PS3
+    # 10001000000000000000000000000000
+    #2281701376,
     # Vita
-    134217728,
-    # ???
+    # 00001000000000000000000000000000
+    # 134217728,
+    # PS1_CLASSIC?
+    # 11111000000100000000000000000000
     4161798144
 ]
 
@@ -213,8 +223,8 @@ class PSNClient:
 
         def ps3_title_parser(title):
             return dict(
-                product_id=title["drm_def"]["productId"],
-                entitlement_id=title["drm_def"]["entitlementId"]
+                content_name=title["drm_def"]["contentName"],
+                id=title["drm_def"]["entitlementId"]
             )
 
         def entitlements_parser(response):
@@ -231,12 +241,29 @@ class PSNClient:
         def game_info_parser(response):
             try:
                 if response:
+                    return dict(
+                        classification=response["included"][0]["attributes"]["secondary-classification"],
+                        title=response["included"][0]["attributes"]["name"]
+                    )
+                else:
+                    return {}
+            except (KeyError, IndexError):
+                return {}
+
+        def search_parser(response):
+            try:
+                if response and ("included" in response):
                     for i in response["included"]:
+                        if ("name" in i["attributes"]) and (i["attributes"]["name"] == entitlement["content_name"]):
+                            return dict(
+                                classification="GAME",
+                                title=entitlement["content_name"]
+                            )
                         if "entitlements" in i["attributes"]:
                             for e in i["attributes"]["entitlements"]:
-                                if e["id"] == entitlement["entitlement_id"]:
+                                if e["id"] == entitlement["id"]:
                                     return dict(
-                                        classification=response["included"][0]["attributes"]["secondary-classification"],
+                                        classification="GAME",
                                         title=e["name"]
                                     )
                     return {}
@@ -247,17 +274,30 @@ class PSNClient:
 
         result = None
         for country in COUNTRIES:
-            for id_field in ["entitlement_id", "product_id"]:
-                try:
+            try:
+                name = " ".join(entitlement["content_name"].split(" ")[-3:])
+                result = await self.fetch_store_data(
+                    search_parser,
+                    PS3_SEARCH_URL.format(query=name,country=country)
+                )
+                if not(result):
                     result = await self.fetch_store_data(
                         game_info_parser,
-                        ENTITLEMENT_DETAILS_URL.format(id=entitlement[id_field],country=country)
+                        ENTITLEMENT_DETAILS_URL.format(id=entitlement["id"],country=country)
                     )
-                except:
-                    continue
-                break
-            if result:
-                break
+            except:
+                continue
+            break
+
+        if result:
+            result["title"] = result["title"] \
+                .replace("Full Game Unlock", "") \
+                .replace("- Full Game", "") \
+                .replace("– Full Game", "") \
+                .replace("Full Game", "") \
+                .replace("full game", "") \
+                .replace("Unlock", "") \
+                .strip()
 
         return result
 

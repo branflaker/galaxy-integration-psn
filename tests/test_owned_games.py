@@ -47,7 +47,7 @@ async def test_get_owned_games(
     assert 2 == http_get.call_count
     get_game_communication_id.assert_called_once_with([game.game_id for game in games])
     args = get_ps3_game_info.call_args
-    assert [game.game_id for game in ps3_games] == [e["entitlement_id"] for e in args[0][0]]
+    assert [game.game_id for game in ps3_games] == [e["id"] for e in args[0][0]]
 
 
 @pytest.mark.asyncio

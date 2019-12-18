@@ -4,13 +4,13 @@ import json
 import pytest
 from galaxy.api.jsonrpc import InvalidParams
 
-from plugin import COMMUNICATION_IDS_CACHE_KEY, GAME_INFO_CACHE_KEY
+from plugin import COMMUNICATION_IDS_CACHE_KEY, ENTITLEMENTS_CACHE_KEY, GAME_INFO_CACHE_KEY
 from psn_client import GAME_DETAILS_URL
 from tests.async_mock import AsyncMock
-from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, ENTITLEMENT_TO_GAME_INFO, TITLES, PS3_ENTITLEMENTS, ALL_GAMES, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE
+from tests.test_data import GAMES, TITLE_TO_COMMUNICATION_ID, ENTITLEMENT_TO_GAME_INFO, TITLES, PS3_ENTITLEMENTS, PS3_GAMES, ALL_GAMES, ENTITLEMENTS_CACHE, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE
 
 GAME_ID = GAMES[7].game_id
-
+ENTITLEMENT_ID = PS3_GAMES[0].game_id
 
 @pytest.fixture
 def mock_client_get_owned_games(mocker):
@@ -71,7 +71,7 @@ def comm_id_getter():
         yield x
 
 def game_info_getter(entitlement):
-    return ENTITLEMENT_TO_GAME_INFO[entitlement["entitlement_id"]]
+    return ENTITLEMENT_TO_GAME_INFO[entitlement["id"]]
 
 
 @pytest.mark.asyncio
@@ -149,7 +149,7 @@ async def test_cache_miss_on_games_retrieval(
         game_id: TITLE_TO_COMMUNICATION_ID[game_id] for game_id in not_cached
     }
 
-    mock_get_game_info.side_effect = lambda entitlement: info_not_cached[entitlement["entitlement_id"]]
+    mock_get_game_info.side_effect = lambda entitlement: info_not_cached[entitlement["id"]]
 
     assert ALL_GAMES == await authenticated_plugin.get_owned_games()
     assert TITLE_TO_COMMUNICATION_ID == authenticated_plugin.persistent_cache[COMMUNICATION_IDS_CACHE_KEY]
@@ -169,7 +169,7 @@ async def test_cache_miss_on_games_retrieval(
         for a in args:
             mock_info_calls_args.append(a)
 
-    assert set(info_not_cached) == set([e["entitlement_id"] for e in mock_info_calls_args])
+    assert set(info_not_cached) == set([e["id"] for e in mock_info_calls_args])
 
 
 @pytest.mark.asyncio
@@ -218,10 +218,14 @@ async def test_game_info_cache_on_game_achievements_retrieval(
     mock_get_game_info,
     mock_persistent_cache
 ):
-    mapping = {GAME_ID: { "classification": "GAME" }}
-    mock_persistent_cache.return_value = {COMMUNICATION_IDS_CACHE_KEY: {}, GAME_INFO_CACHE_KEY: mapping}
+    mapping = {ENTITLEMENT_ID: { "classification": "GAME" }}
+    mock_persistent_cache.return_value = {
+        COMMUNICATION_IDS_CACHE_KEY: {},
+        ENTITLEMENTS_CACHE_KEY: ENTITLEMENTS_CACHE,
+        GAME_INFO_CACHE_KEY: mapping
+    }
 
-    assert [] == await authenticated_plugin.get_unlocked_achievements(GAME_ID, CONTEXT)
+    assert [] == await authenticated_plugin.get_unlocked_achievements(ENTITLEMENT_ID, CONTEXT)
 
     assert not mock_get_game_communication_id_map.called
     assert not mock_get_game_info.called

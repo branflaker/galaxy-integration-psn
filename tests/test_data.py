@@ -30,7 +30,10 @@ PS3_GAMES = [
     Game("UP0101-NPUB31633_00-MGS4MAINGAME0000", "Metal Gear Solid 4: Guns of the Patriots", [], DEFAULT_LICENSE),
     Game("UP4523-NPUB31625_00-INSPACEWEBRAWL01", "In Space We Brawl", [], DEFAULT_LICENSE),
     Game("UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "Mighty No. 9", [], DEFAULT_LICENSE),
-    Game("EP9000-NPEE00026_00-GCRASHTEAE000001", "CTR™: Crash Team Racing", [], DEFAULT_LICENSE)
+    Game("EP9000-NPEE00026_00-GCRASHTEAE000001", "CTR™: Crash Team Racing", [], DEFAULT_LICENSE),
+    Game("UP0002-NPUB31202_00-DESTINYTHEGAME01", "Destiny™", [], DEFAULT_LICENSE),
+    Game("UP4321-NPUB30863_00-ALIENRAGEFULLCIG", "Alien Rage", [], DEFAULT_LICENSE),
+    Game("UP0001-NPUB30714_00-LICENSERAYMAN001", "Rayman 3 HD", [], DEFAULT_LICENSE)
 ]
 
 PS3_DLCS = [
@@ -46,12 +49,16 @@ PS3_TITLES = PS3_GAMES + PS3_DLCS + PS3_DEMOS
 ALL_GAMES = GAMES + PS3_GAMES
 
 PS3_ENTITLEMENTS = [
-    {"entitlement_id": "UP0101-NPUB31633_00-MGS4MAINGAME0000", "product_id": "UP0101-NPUB31633_00-MGS4MAINGAME0000"},
-    {"entitlement_id": "UP4523-NPUB31625_00-INSPACEWEBRAWL01", "product_id": "UP4523-CUSA01386_00-INSPACEWEBRAWL01"},
-    {"entitlement_id": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "product_id": "UP2047-CUSA02495_00-MIGHTYNUMBERNINE"},
-    {"entitlement_id": "UP9000-CUSA00473_00-LBPDLCSONYCO0046", "product_id": "UP9000-CUSA00473_00-LBPDLCSONYCO0046"},
-    {"entitlement_id": "EP9000-NPEE00026_00-GCRASHTEAE000001", "product_id": "EP9000-NPEE00026_00-GCRASHTEAM000001"}
+    {"id": "UP0101-NPUB31633_00-MGS4MAINGAME0000", "content_name": "Metal Gear Solid 4: Guns of the Patriots"},
+    {"id": "UP4523-NPUB31625_00-INSPACEWEBRAWL01", "content_name": "In Space We Brawl"},
+    {"id": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "content_name": "Mighty No. 9"},
+    {"id": "EP9000-NPEE00026_00-GCRASHTEAE000001", "content_name": "CTR™: Crash Team Racing"},
+    {"id": "UP0002-NPUB31202_00-DESTINYTHEGAME01", "content_name": "Destiny™"},
+    {"id": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG", "content_name": "Alien Rage Full Game Unlock"},
+    {"id": "UP0001-NPUB30714_00-LICENSERAYMAN001", "content_name": "Rayman 3 HD Full Game Unlock"}
 ]
+
+ENTITLEMENTS_CACHE = {e["id"]: e for e in PS3_ENTITLEMENTS}
 
 BACKEND_GAME_TITLES_WITHOUT_DLC = {
     "start": 0,
@@ -108,37 +115,58 @@ BACKEND_ENTITLEMENTS_WITHOUT_DLC = {
     "entitlements": [
         {
             "drm_def": {
-                "productId": "UP0101-NPUB31633_00-MGS4MAINGAME0000",
+                "contentName": "Metal Gear Solid 4: Guns of the Patriots",
                 "entitlementId": "UP0101-NPUB31633_00-MGS4MAINGAME0000",
                 "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
             }
         },
         {
             "drm_def": {
-                "productId": "UP4523-NPUB31625_00-INSPACEWEBRAWL01",
+                "contentName": "In Space We Brawl",
                 "entitlementId": "UP4523-NPUB31625_00-INSPACEWEBRAWL01",
                 "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
             }
         },
         {
             "drm_def": {
-                "productId": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE",
+                "contentName": "Mighty No. 9",
                 "entitlementId": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE",
                 "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
             }
         },
         {
             "drm_def": {
+                "contentName": "CTR™: Crash Team Racing",
                 "entitlementId": "EP9000-NPEE00026_00-GCRASHTEAE000001",
-                "productId": "EP9000-NPEE00026_00-GCRASHTEAM000001",
                 "drmContents": [{ "platformIds": 4161798144, "drmType": 2 }]
             }
         },
         {
             "drm_def": {
-                "productId": "UP0700-NPUB90277_00-KATAMARI4EVRDEMO",
+                "contentName": "Katamari Forever™ Demo",
                 "entitlementId": "UP0700-NPUB90277_00-KATAMARI4EVRDEMO",
                 "drmContents":[{ "platformIds": 2147483648, "drmType": 3 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Destiny™",
+                "entitlementId": "UP0002-NPUB31202_00-DESTINYTHEGAME01",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Alien Rage Full Game Unlock",
+                "entitlementId": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Rayman 3 HD Full Game Unlock",
+                "entitlementId": "UP0001-NPUB30714_00-LICENSERAYMAN001",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
             }
         }
     ]
@@ -149,18 +177,77 @@ ENTITLEMENT_TO_GAME_INFO = {
     "UP4523-NPUB31625_00-INSPACEWEBRAWL01": { "title": "In Space We Brawl", "classification": "GAME" },
     "UP2047-NPUB31733_00-MIGHTYNUMBERNINE": { "title": "Mighty No. 9", "classification": "GAME" },
     "EP9000-NPEE00026_00-GCRASHTEAE000001": { "title": "CTR™: Crash Team Racing", "classification": "PS1_CLASSIC" },
-    "UP9000-CUSA00473_00-LBPDLCSONYCO0046": { "title": "LittleBigPlanet™ 3 Helghast Costume", "classification": "ADD-ON" }
+    "UP0002-NPUB31202_00-DESTINYTHEGAME01": { "title": "Destiny™", "classification": "GAME" },
+    "UP4321-NPUB30863_00-ALIENRAGEFULLCIG": { "title": "Alien Rage", "classification": "GAME" },
+    "UP0001-NPUB30714_00-LICENSERAYMAN001": { "title": "Rayman 3 HD", "classification": "GAME" }
 }
 
-BACKEND_GAME_INFO = {
+BACKEND_GAME_INFO_DIRECT = {
+    "included": [
+        {
+            "id": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG",
+            "attributes": {
+                "name": "Alien Rage",
+                "secondary-classification": "GAME"
+            }
+        },
+        {
+            "attributes": {
+                "entitlements": [
+                    {
+                        "id": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG",
+                        "name": "Alien Rage Full Game Unlock"
+                    }
+                ]
+            }
+        }
+    ]
+}
+
+BACKEND_SEARCH_RESULTS = {
+    "included": [
+        { "attributes": {} },
+        {
+            "attributes": {
+                "entitlements": [
+                    {
+                        "id": "UP0002-BLUS31181_00-DESTINYEXPNPASS7",
+                        "name": "Destiny™ Expansion Pass"
+                    },
+                    {
+                        "id": "UP0002-BLUS31181_00-DESTINYTAKENKING",
+                        "name": "Destiny: The Taken King"
+                    },
+                    {
+                        "id": "UP0002-NPUB31202_00-DESTINYTHEGAME01",
+                        "name": "Destiny™"
+                    }
+                ]
+            }
+        }
+    ]
+}
+
+BACKEND_ID_MATCH_SEARCH_RESULTS = {
     "included": [
         {
             "attributes": {
-                "secondary-classification": "GAME",
-                "entitlements": [{
-                    "name": "Test",
-                    "id": "1"
-                }]
+                "entitlements": [
+                    {
+                        "id": "UP0001-NPUB30714_00-LICENSERAYMAN001",
+                        "name": "Rayman 3 HD Full Game Unlock"
+                    }
+                ]
+            }
+        }
+    ]
+}
+
+BACKEND_NAME_MATCH_SEARCH_RESULTS = {
+    "included": [
+        {
+            "attributes": {
+                "name": "CTR™: Crash Team Racing"
             }
         }
     ]

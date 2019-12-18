@@ -1,10 +1,11 @@
 import asyncio
 import pytest
 from galaxy.api.errors import AuthenticationRequired, UnknownBackendResponse
+from plugin import ENTITLEMENTS_CACHE_KEY
 from psn_client import EARNED_TROPHIES_PAGE
 from tests.async_mock import AsyncMock
 from unittest.mock import MagicMock
-from tests.test_data import COMMUNICATION_ID, ALL_GAMES, TITLE_TO_COMMUNICATION_ID, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE, BACKEND_TROPHIES
+from tests.test_data import COMMUNICATION_ID, ALL_GAMES, TITLE_TO_COMMUNICATION_ID, ENTITLEMENTS_CACHE, UNLOCKED_ACHIEVEMENTS, CONTEXT, TROPHIES_CACHE, BACKEND_TROPHIES
 
 GET_ALL_TROPHIES_URL = EARNED_TROPHIES_PAGE.format(communication_id=COMMUNICATION_ID, trophy_group_id="all")
 
@@ -58,6 +59,9 @@ def mock_import_achievements_success(mocker):
 def mock_import_achievements_failure(mocker):
     return mocker.patch("plugin.PSNPlugin.game_achievements_import_failure")
 
+@pytest.fixture
+def mock_persistent_cache(authenticated_plugin, mocker):
+    return mocker.patch.object(type(authenticated_plugin), "persistent_cache", new_callable=mocker.PropertyMock)
 
 @pytest.mark.asyncio
 async def test_not_authenticated(psn_plugin):
@@ -79,9 +83,11 @@ async def test_get_unlocked_achievements(
 async def test_get_unlocked_achievements_ps3(
     authenticated_plugin,
     mock_get_game_communication_ids,
+    mock_persistent_cache
 ):
     mock_get_game_communication_ids.return_value = {}
     authenticated_plugin._trophies_cache = TROPHIES_CACHE
+    mock_persistent_cache.return_value = {ENTITLEMENTS_CACHE_KEY: ENTITLEMENTS_CACHE}
     assert [] == await authenticated_plugin.get_unlocked_achievements(ENTITLEMENT_ID, CONTEXT)
 
 @pytest.mark.asyncio

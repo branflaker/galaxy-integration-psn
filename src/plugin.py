@@ -7,7 +7,7 @@ import sys
 from collections import defaultdict
 
 from galaxy.api.plugin import Plugin, create_and_run_plugin
-from galaxy.api.types import Authentication, NextStep, Achievement, UserPresence, PresenceState, Game, LicenseInfo
+from galaxy.api.types import Authentication, NextStep, Achievement, UserPresence, PresenceState, Game, GameLibrarySettings, LicenseInfo
 from galaxy.api.consts import Platform, LicenseType
 from galaxy.api.errors import ApplicationError, InvalidCredentials, UnknownError
 from galaxy.api.jsonrpc import InvalidParams
@@ -43,7 +43,7 @@ GAME_INFO_CACHE_KEY = "game_info"
 
 class PSNPlugin(Plugin):
     def __init__(self, reader, writer, token):
-        super().__init__(Platform.Psn, __version__, reader, writer, token)
+        super().__init__(Platform.Test, __version__, reader, writer, token)
         self._http_client = AuthenticatedHttpClient(OAUTH_TOKEN_URL, self.lost_authentication)
         self._store_http_client = AuthenticatedHttpClient(OAUTH_STORE_TOKEN_URL, self.lost_authentication)
         self._psn_client = PSNClient(self._http_client, self._store_http_client)
@@ -205,6 +205,24 @@ class PSNPlugin(Plugin):
         )
 
         return filtered_result[0] + filtered_result[1]
+
+    async def get_game_library_settings(self, game_id: str, context: Any) -> GameLibrarySettings:
+        if not context:
+            return GameLibrarySettings(game_id)
+
+        comm_id_map = await self.get_game_communication_ids([game_id])
+
+        if comm_id_map:
+            return GameLibrarySettings(game_id, ["PS4"])
+
+        entitlement = self.get_entitlement_from_cache(game_id)
+        game_info_map = await self.get_ps3_game_info([entitlement])
+
+        if game_info_map:
+            return GameLibrarySettings(game_id, ["PS3"])
+
+        return GameLibrarySettings(game_id)
+
 
     async def get_unlocked_achievements(self, game_id: str, context: Any) -> List[Achievement]:
         if not context:

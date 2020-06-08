@@ -31,7 +31,7 @@ PS3_GAMES = [
     Game("UP4523-NPUB31625_00-INSPACEWEBRAWL01", "In Space We Brawl", [], DEFAULT_LICENSE),
     Game("UP2047-NPUB31733_00-MIGHTYNUMBERNINE", "Mighty No. 9", [], DEFAULT_LICENSE),
     Game("EP9000-NPEE00026_00-GCRASHTEAE000001", "CTR™: Crash Team Racing", [], DEFAULT_LICENSE),
-    Game("UP0002-NPUB31202_00-DESTINYTHEGAME01", "Destiny™", [], DEFAULT_LICENSE),
+    Game("UP0002-NPUB31202_00-DESTINYTHEGAME01", "Destiny", [], DEFAULT_LICENSE),
     Game("UP4321-NPUB30863_00-ALIENRAGEFULLCIG", "Alien Rage", [], DEFAULT_LICENSE),
     Game("UP0001-NPUB30714_00-LICENSERAYMAN001", "Rayman 3 HD", [], DEFAULT_LICENSE)
 ]
@@ -55,7 +55,8 @@ PS3_ENTITLEMENTS = [
     {"id": "EP9000-NPEE00026_00-GCRASHTEAE000001", "content_name": "CTR™: Crash Team Racing"},
     {"id": "UP0002-NPUB31202_00-DESTINYTHEGAME01", "content_name": "Destiny™"},
     {"id": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG", "content_name": "Alien Rage Full Game Unlock"},
-    {"id": "UP0001-NPUB30714_00-LICENSERAYMAN001", "content_name": "Rayman 3 HD Full Game Unlock"}
+    {"id": "UP0001-NPUB30714_00-LICENSERAYMAN001", "content_name": "Rayman 3 HD Full Game Unlock"},
+    {"id": "UP0700-BLUS30903_00-DOWNLOADDATA0067", "content_name": "Tales of Graces f Level Up +5 (#1)"}
 ]
 
 ENTITLEMENTS_CACHE = {e["id"]: e for e in PS3_ENTITLEMENTS}
@@ -169,7 +170,77 @@ BACKEND_ENTITLEMENTS_WITHOUT_DLC = {
                 "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
             }
         }
-    ]
+    ],
+    "total_results": 8
+}
+
+BACKEND_ENTITLEMENTS_WITH_DLC = {
+    "entitlements": [
+        {
+            "drm_def": {
+                "contentName": "Metal Gear Solid 4: Guns of the Patriots",
+                "entitlementId": "UP0101-NPUB31633_00-MGS4MAINGAME0000",
+                "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "In Space We Brawl",
+                "entitlementId": "UP4523-NPUB31625_00-INSPACEWEBRAWL01",
+                "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Mighty No. 9",
+                "entitlementId": "UP2047-NPUB31733_00-MIGHTYNUMBERNINE",
+                "drmContents": [{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "CTR™: Crash Team Racing",
+                "entitlementId": "EP9000-NPEE00026_00-GCRASHTEAE000001",
+                "drmContents": [{ "platformIds": 4161798144, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Katamari Forever™ Demo",
+                "entitlementId": "UP0700-NPUB90277_00-KATAMARI4EVRDEMO",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 3 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Destiny™",
+                "entitlementId": "UP0002-NPUB31202_00-DESTINYTHEGAME01",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Alien Rage Full Game Unlock",
+                "entitlementId": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Rayman 3 HD Full Game Unlock",
+                "entitlementId": "UP0001-NPUB30714_00-LICENSERAYMAN001",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        },
+        {
+            "drm_def": {
+                "contentName": "Tales of Graces f Level Up +5 (#1)",
+                "entitlementId": "UP0700-BLUS30903_00-DOWNLOADDATA0067",
+                "drmContents":[{ "platformIds": 2147483648, "drmType": 2 }]
+            }
+        }
+    ],
+    "total_results": 9
 }
 
 ENTITLEMENT_TO_GAME_INFO = {
@@ -177,12 +248,23 @@ ENTITLEMENT_TO_GAME_INFO = {
     "UP4523-NPUB31625_00-INSPACEWEBRAWL01": { "title": "In Space We Brawl", "classification": "GAME" },
     "UP2047-NPUB31733_00-MIGHTYNUMBERNINE": { "title": "Mighty No. 9", "classification": "GAME" },
     "EP9000-NPEE00026_00-GCRASHTEAE000001": { "title": "CTR™: Crash Team Racing", "classification": "PS1_CLASSIC" },
-    "UP0002-NPUB31202_00-DESTINYTHEGAME01": { "title": "Destiny™", "classification": "GAME" },
+    "UP0002-NPUB31202_00-DESTINYTHEGAME01": { "title": "Destiny", "classification": "GAME" },
     "UP4321-NPUB30863_00-ALIENRAGEFULLCIG": { "title": "Alien Rage", "classification": "GAME" },
-    "UP0001-NPUB30714_00-LICENSERAYMAN001": { "title": "Rayman 3 HD", "classification": "GAME" }
+    "UP0001-NPUB30714_00-LICENSERAYMAN001": { "title": "Rayman 3 HD", "classification": "GAME" },
+    "UP0700-BLUS30903_00-DOWNLOADDATA0067": {}
 }
 
 BACKEND_GAME_INFO_DIRECT = {
+    "data": {
+        "relationships": {
+            "children": {
+                "data": [{
+                    "id": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG",
+                    "type": "game"
+                }]
+            }
+        }
+    },
     "included": [
         {
             "id": "UP4321-NPUB30863_00-ALIENRAGEFULLCIG",
@@ -204,51 +286,44 @@ BACKEND_GAME_INFO_DIRECT = {
     ]
 }
 
+BACKEND_GAME_INFO_DIRECT_2 = {
+    "data": {
+        "relationships": {
+            "children": {
+                "data": [{
+                    "id": "UP0002-NPUB31202_00-DESTINYTHEGAME01",
+                    "type": "game"
+                }]
+            }
+        }
+    },
+    "included": [{
+        "id": "UP0002-NPUB31202_00-DESTINYTHEGAME01",
+        "attributes": {
+            "name": "Destiny: The Taken King - Legendary Edition",
+            "secondary-classification": "GAME"
+        }
+    }]
+}
+
 BACKEND_SEARCH_RESULTS = {
-    "included": [
-        { "attributes": {} },
-        {
-            "attributes": {
-                "entitlements": [
-                    {
-                        "id": "UP0002-BLUS31181_00-DESTINYEXPNPASS7",
-                        "name": "Destiny™ Expansion Pass"
-                    },
-                    {
-                        "id": "UP0002-BLUS31181_00-DESTINYTAKENKING",
-                        "name": "Destiny: The Taken King"
-                    },
-                    {
-                        "id": "UP0002-NPUB31202_00-DESTINYTHEGAME01",
-                        "name": "Destiny™"
-                    }
-                ]
-            }
-        }
-    ]
-}
-
-BACKEND_ID_MATCH_SEARCH_RESULTS = {
-    "included": [
-        {
-            "attributes": {
-                "entitlements": [
-                    {
-                        "id": "UP0001-NPUB30714_00-LICENSERAYMAN001",
-                        "name": "Rayman 3 HD Full Game Unlock"
-                    }
-                ]
-            }
-        }
-    ]
-}
-
-BACKEND_NAME_MATCH_SEARCH_RESULTS = {
     "included": [
         {
             "attributes": {
                 "name": "CTR™: Crash Team Racing"
-            }
+            },
+            "type": "game"
+        }
+    ]
+}
+
+BACKEND_DLC_SEARCH_RESULTS = {
+    "included": [
+        {
+            "attributes": {
+                "name": "Tales of Graces f Level Up +5 (#1)"
+            },
+            "type": "game-related"
         }
     ]
 }

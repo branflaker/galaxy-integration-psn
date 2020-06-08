@@ -124,7 +124,8 @@ async def test_invalid_authorization_response(
     get_access_token.side_effect = InvalidCredentials
     with pytest.raises(InvalidCredentials):
         assert await psn_plugin.authenticate(stored_credentials)
-    get_access_token.assert_called_once_with(npsso)
+    assert 2 == get_access_token.call_count
+    get_access_token.assert_has_calls([call(npsso), call(npsso)])
 
 
 @pytest.mark.asyncio

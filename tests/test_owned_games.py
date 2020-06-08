@@ -1,7 +1,7 @@
 import pytest
 from galaxy.api.errors import AuthenticationRequired, UnknownBackendResponse
-from http_client import paginate_url
-from psn_client import DEFAULT_LIMIT, GAME_LIST_URL, INTERNAL_ENTITLEMENTS_URL
+from http_client import paginate_url, paginate_store_url
+from psn_client import DEFAULT_LIMIT, MAX_ENTITLEMENTS_PER_REQUEST, GAME_LIST_URL, INTERNAL_ENTITLEMENTS_URL
 from tests.async_mock import AsyncMock
 from tests.test_data import COMMUNICATION_ID, GAME_INFO
 from tests.test_data import GAMES, PS3_GAMES, BACKEND_GAME_TITLES_WITHOUT_DLC, BACKEND_ENTITLEMENTS_WITHOUT_DLC
@@ -17,6 +17,7 @@ async def test_not_authenticated(psn_plugin):
 @pytest.mark.parametrize("backend_response, entitlement_response, games, ps3_games", [
     ({}, {}, [], []),
     ({"titles": []}, {"entitlements": []}, [], []),
+    ({"titles": []}, {"entitlements": [{"drm_def": {"field": "malformed response", "drmContents": [{"platformIds": 2147483648, "drmType": 2}]}}]}, [], []),
     (BACKEND_GAME_TITLES_WITHOUT_DLC, BACKEND_ENTITLEMENTS_WITHOUT_DLC, GAMES, PS3_GAMES)
 ])
 async def test_get_owned_games(
@@ -43,11 +44,33 @@ async def test_get_owned_games(
     assert (games + ps3_games) == await authenticated_plugin.get_owned_games()
     http_get.assert_any_call(
         paginate_url(GAME_LIST_URL.format(user_id="me"), DEFAULT_LIMIT))
-    http_get.assert_any_call(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"))
+    http_get.assert_any_call(paginate_store_url(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"), MAX_ENTITLEMENTS_PER_REQUEST))
     assert 2 == http_get.call_count
     get_game_communication_id.assert_called_once_with([game.game_id for game in games])
     args = get_ps3_game_info.call_args
     assert [game.game_id for game in ps3_games] == [e["id"] for e in args[0][0]]
+
+@pytest.mark.asyncio
+async def test_entitlement_paging(
+    http_get,
+    authenticated_plugin,
+    mocker
+):
+    entitlements = BACKEND_ENTITLEMENTS_WITHOUT_DLC["entitlements"]
+    first_response = { "entitlements": entitlements[:-1], "total_results": MAX_ENTITLEMENTS_PER_REQUEST + 1 }
+    second_response = { "entitlements": entitlements[-1:], "total_results": MAX_ENTITLEMENTS_PER_REQUEST + 1 }
+    http_get.side_effect = [{}, first_response, second_response]
+
+    mocker.patch(
+        "plugin.PSNPlugin.get_ps3_game_info",
+        new_callable=AsyncMock,
+        return_value={game.game_id: {**GAME_INFO, "title": game.game_title} for game in PS3_GAMES }
+    )
+
+    assert(PS3_GAMES) == await authenticated_plugin.get_owned_games()
+
+    http_get.assert_any_call(paginate_store_url(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"), MAX_ENTITLEMENTS_PER_REQUEST))
+    http_get.assert_any_call(paginate_store_url(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"), MAX_ENTITLEMENTS_PER_REQUEST, MAX_ENTITLEMENTS_PER_REQUEST))
 
 
 @pytest.mark.asyncio
@@ -68,5 +91,5 @@ async def test_bad_format(
 
     http_get.assert_any_call(
         paginate_url(GAME_LIST_URL.format(user_id="me"), DEFAULT_LIMIT))
-    http_get.assert_any_call(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"))
+    http_get.assert_any_call(paginate_store_url(INTERNAL_ENTITLEMENTS_URL.format(user_id="me"), MAX_ENTITLEMENTS_PER_REQUEST))
     assert 2 == http_get.call_count

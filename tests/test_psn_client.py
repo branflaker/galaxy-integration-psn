@@ -2,7 +2,7 @@ import math
 import pytest
 from galaxy.api.errors import TooManyRequests, UnknownBackendResponse
 from tests.async_mock import AsyncMock
-from tests.test_data import BACKEND_GAME_INFO_DIRECT, BACKEND_SEARCH_RESULTS, BACKEND_ID_MATCH_SEARCH_RESULTS, BACKEND_NAME_MATCH_SEARCH_RESULTS, PS3_ENTITLEMENTS
+from tests.test_data import BACKEND_GAME_INFO_DIRECT, BACKEND_GAME_INFO_DIRECT_2, BACKEND_SEARCH_RESULTS, BACKEND_DLC_SEARCH_RESULTS, PS3_ENTITLEMENTS
 
 TROPHIES = [
     {"id": "NPWR15900_00", "name": "Persona 5: Dancing in Starlight"},
@@ -251,39 +251,27 @@ async def test_game_info_search(
 ):
     http_get.side_effect = [BACKEND_SEARCH_RESULTS]
 
-    game_info = await authenticated_psn_client.async_get_game_info(PS3_ENTITLEMENTS[4])
+    game_info = await authenticated_psn_client.async_get_game_info(PS3_ENTITLEMENTS[3])
     assert game_info["classification"] == "GAME"
-    assert game_info["title"] == "Destiny™"
+    assert game_info["title"] == "CTR™: Crash Team Racing"
 
 @pytest.mark.asyncio
 async def test_game_info_regions(
     http_get,
     authenticated_psn_client
 ):
-    http_get.side_effect = [{ "included": [] }, "Not Found", BACKEND_SEARCH_RESULTS]
+    http_get.side_effect = [{ "included": [] }, "Not Found", { "included": [] }, BACKEND_GAME_INFO_DIRECT_2]
 
     game_info = await authenticated_psn_client.async_get_game_info(PS3_ENTITLEMENTS[4])
     assert game_info["classification"] == "GAME"
-    assert game_info["title"] == "Destiny™"
+    assert game_info["title"] == "Destiny"
 
 @pytest.mark.asyncio
-async def test_game_name_filter(
+async def test_dlc_name_match_reuslts(
     http_get,
     authenticated_psn_client
 ):
-    http_get.side_effect = [BACKEND_ID_MATCH_SEARCH_RESULTS]
+    http_get.side_effect = [BACKEND_DLC_SEARCH_RESULTS]
 
-    game_info = await authenticated_psn_client.async_get_game_info(PS3_ENTITLEMENTS[6])
-    assert game_info["classification"] == "GAME"
-    assert game_info["title"] == "Rayman 3 HD"
-
-@pytest.mark.asyncio
-async def test_game_name_match_results(
-    http_get,
-    authenticated_psn_client
-):
-    http_get.side_effect = [BACKEND_NAME_MATCH_SEARCH_RESULTS]
-
-    game_info = await authenticated_psn_client.async_get_game_info(PS3_ENTITLEMENTS[3])
-    assert game_info["classification"] == "GAME"
-    assert game_info["title"] == "CTR™: Crash Team Racing"
+    game_info = await authenticated_psn_client.async_get_game_info(PS3_ENTITLEMENTS[7])
+    assert game_info == {}

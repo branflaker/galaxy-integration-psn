@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import unicodedata
 from datetime import datetime, timezone
 from functools import partial
 from typing import Dict, List, NewType, Tuple
@@ -7,7 +8,7 @@ from typing import Dict, List, NewType, Tuple
 from galaxy.api.errors import UnknownBackendResponse
 from galaxy.api.types import Achievement, Game, LicenseInfo, UserInfo, UserPresence, PresenceState
 from galaxy.api.consts import LicenseType
-from http_client import paginate_url
+from http_client import paginate_url, paginate_store_url
 
 # game_id_list is limited to 5 IDs per request
 GAME_DETAILS_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/apps/trophyTitles" \
@@ -24,9 +25,7 @@ GAME_LIST_URL = "https://gamelist.api.playstation.com/v1/users/{user_id}/titles"
     "&fields=@default"
 
 INTERNAL_ENTITLEMENTS_URL = "https://commerce.api.np.km.playstation.net/commerce/api/v1/users/{user_id}/internal_entitlements" \
-    "?start=0" \
-    "&size=800" \
-    "&fields=drm_def"
+    "?fields=drm_def"
 
 TROPHY_TITLES_URL = "https://pl-tpy.np.community.playstation.net/trophy/v1/trophyTitles" \
     "?fields=@default" \
@@ -85,6 +84,7 @@ ENTITLEMENT_PLATFORM_IDS = [
 
 DEFAULT_LIMIT = 100
 MAX_TITLE_IDS_PER_REQUEST = 5
+MAX_ENTITLEMENTS_PER_REQUEST = 450
 
 CommunicationId = NewType("CommunicationId", str)
 TitleId = NewType("TitleId", str)
@@ -98,6 +98,18 @@ def parse_timestamp(earned_date) -> UnixTimestamp:
     dt = datetime.strptime(earned_date, "%Y-%m-%dT%H:%M:%SZ")
     dt = datetime.combine(dt.date(), dt.time(), timezone.utc)
     return UnixTimestamp(dt.timestamp())
+
+def longest_common_prefix(s1, s2):
+    out = ''
+    s1test = s1.lstrip("The ")
+    s2test = s2.lstrip("The ")
+    s1test = unicodedata.normalize("NFKD", s1test.casefold())
+    s2test = unicodedata.normalize("NFKD", s2test.casefold())
+    for i, j, k in zip(s1test, s2test, s1):
+        if i != j:
+            break
+        out += k
+    return out
 
 
 class PSNClient:
@@ -148,6 +160,35 @@ class PSNClient:
             logging.exception("Cannot parse data")
             raise UnknownBackendResponse()
 
+    async def fetch_paginated_store_data(
+        self,
+        parser,
+        url,
+        counter_name,
+        limit=MAX_ENTITLEMENTS_PER_REQUEST,
+        *args,
+        **kwargs
+    ):
+        response = await self._store_http_client.get(paginate_store_url(url=url, size=limit), *args, **kwargs)
+        if not response:
+            return []
+
+        try:
+            total = int(response.get(counter_name, 0))
+        except ValueError:
+            raise UnknownBackendResponse()
+
+        responses = [response] + await asyncio.gather(*[
+            self._store_http_client.get(paginate_store_url(url=url, size=limit, start=offset), *args, **kwargs)
+            for offset in range(limit, total, limit)
+        ])
+
+        try:
+            return [rec for res in responses for rec in parser(res)]
+        except Exception:
+            logging.exception("Cannot parse data")
+            raise UnknownBackendResponse()
+
     async def fetch_store_data(self, parser, *args, **kwargs):
         response = await self._store_http_client.get(*args, **kwargs)
 
@@ -177,7 +218,7 @@ class PSNClient:
 
         def games_parser(response):
             return [
-                game_parser(title) for title in response["titles"]
+               game_parser(title) for title in response["titles"]
             ] if response else []
 
         return await self.fetch_paginated_data(
@@ -219,7 +260,9 @@ class PSNClient:
         def ps3_entitlements(entitlement):
             return "drm_def" in entitlement \
                 and entitlement["drm_def"]["drmContents"][0]["platformIds"] in ENTITLEMENT_PLATFORM_IDS \
-                and entitlement["drm_def"]["drmContents"][0]["drmType"] != 3
+                and entitlement["drm_def"]["drmContents"][0]["drmType"] != 3 \
+                and "contentName" in entitlement["drm_def"] \
+                and "entitlementId" in entitlement["drm_def"]
 
         def ps3_title_parser(title):
             return dict(
@@ -232,21 +275,26 @@ class PSNClient:
                 ps3_title_parser(title) for title in filter(ps3_entitlements, response["entitlements"])
             ] if response and "entitlements" in response else []
 
-        return await self.fetch_store_data(
+        return await self.fetch_paginated_store_data(
             entitlements_parser,
-            INTERNAL_ENTITLEMENTS_URL.format(user_id="me")
+            INTERNAL_ENTITLEMENTS_URL.format(user_id="me"),
+            "total_results"
         )
 
     async def async_get_game_info(self, entitlement: Entitlement) -> GameInfo:
         def game_info_parser(response):
             try:
                 if response:
-                    return dict(
-                        classification=response["included"][0]["attributes"]["secondary-classification"],
-                        title=response["included"][0]["attributes"]["name"]
-                    )
-                else:
-                    return {}
+                    main_info = response["data"]["relationships"]["children"]["data"][0]
+                    if (main_info["type"] == "game") and (main_info["id"] == entitlement["id"]):
+                        return dict(
+                            classification=response["included"][0]["attributes"]["secondary-classification"],
+                            title=longest_common_prefix(
+                                response["included"][0]["attributes"]["name"],
+                                entitlement["content_name"]
+                            )
+                        )
+                return {}
             except (KeyError, IndexError):
                 return {}
 
@@ -254,18 +302,11 @@ class PSNClient:
             try:
                 if response and ("included" in response):
                     for i in response["included"]:
-                        if ("name" in i["attributes"]) and (i["attributes"]["name"] == entitlement["content_name"]):
+                        if (i["type"] == "game") and ("name" in i["attributes"]) and (i["attributes"]["name"] == entitlement["content_name"]):
                             return dict(
                                 classification="GAME",
                                 title=entitlement["content_name"]
                             )
-                        if "entitlements" in i["attributes"]:
-                            for e in i["attributes"]["entitlements"]:
-                                if e["id"] == entitlement["id"]:
-                                    return dict(
-                                        classification="GAME",
-                                        title=e["name"]
-                                    )
                     return {}
                 else:
                     return {}

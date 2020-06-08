@@ -83,6 +83,9 @@ DEFAULT_TIMEOUT = 30
 def paginate_url(url, limit, offset=0):
     return url + "&limit={limit}&offset={offset}".format(limit=limit, offset=offset)
 
+def paginate_store_url(url, size, start=0):
+    return url + "&size={size}&start={start}".format(size=size, start=start)
+
 
 class AuthenticatedHttpClient:
     def __init__(self, token_url, auth_lost_callback):
